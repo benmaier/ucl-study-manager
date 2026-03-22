@@ -394,9 +394,33 @@ ucl-study-manager/
 - API keys for LLM providers are managed via the key pool in `ucl-study-llm-chat-api` (stored in the same PostgreSQL instance).
 
 ### Environment Variables
+
+**Admin** (CLI tools, researcher machine only — never on participant machines):
 ```
-DATABASE_URL=postgresql://...        # Scaleway serverless PostgreSQL
-ANTHROPIC_API_KEY=...                # Optional: direct key (alternative to key pool)
-OPENAI_API_KEY=...                   # Optional: direct key
-GOOGLE_API_KEY=...                   # Optional: direct key
+DATABASE_URL=postgresql://...        # Scaleway serverless PostgreSQL (admin IAM credentials)
 ```
+
+**Participant app** (Electron, embedded at build time):
+```
+PARTICIPANT_DB_URL=postgresql://...   # Limited-privilege DB user (SELECT study data, INSERT logs, no DELETE)
+```
+
+The `PARTICIPANT_DB_URL` credential is injected at Electron build time and embedded in the packaged app. It is **never committed to the repo**. The `.gitignore` includes `.env` and any build-time credential files.
+
+### Security Model
+
+The Electron app ships with a **single limited-privilege database credential** that can:
+- SELECT study structure (stages, files, cohorts)
+- SELECT API keys via `assign_api_key()` SECURITY DEFINER function (keys never exposed directly)
+- INSERT chat logs, file logs, and participant progress
+- UPDATE `completed_at` and `input_answer` on participant progress
+
+It **cannot**:
+- DELETE any data
+- UPDATE study definitions, participants, or API keys
+- Access the admin tables directly
+- See other participants' chat logs (enforced via RLS)
+
+**Known limitation:** The DB credential is embedded in the Electron binary. A technically skilled participant on a lab machine could theoretically extract it. The credential is intentionally limited in scope — the worst case is inserting extra chat log entries. This is an accepted trade-off for avoiding the complexity of a separate API server. The lab environment (university-controlled machines, supervised sessions) mitigates this risk.
+
+Participants authenticate in the app with their **3-word identifier + 6-word password**. These are looked up against the `participants` table to determine their cohort, stages, and progress. The identifier/password are NOT database credentials — they are application-level auth checked against the DB.

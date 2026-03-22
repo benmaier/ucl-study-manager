@@ -96,6 +96,8 @@ model StudySession {
 model Participant {
   id         Int      @id @default(autoincrement())
   identifier String   @unique
+  dbUser     String?  @unique @map("db_user")
+  dbPassword String?  @map("db_password")
   name       String?
   sessionId  Int      @map("session_id")
   cohortId   Int      @map("cohort_id")
@@ -115,6 +117,7 @@ model ParticipantProgress {
   stageId       Int       @map("stage_id")
   startedAt     DateTime  @default(now()) @map("started_at")
   completedAt   DateTime? @map("completed_at")
+  inputAnswer   String?   @map("input_answer")
 
   participant Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
   stage       Stage       @relation(fields: [stageId], references: [id], onDelete: Cascade)

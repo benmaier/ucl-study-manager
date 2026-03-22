@@ -1,6 +1,6 @@
 import { randomInt } from "crypto";
 
-// 256 common, easy-to-type English words (4 words from 256 = 256^4 ≈ 4.3 billion combinations)
+// 256 common, easy-to-type English words
 const WORDS = [
   "amber","angel","apple","arrow","atlas","badge","beach","bells","berry","blade",
   "blaze","bloom","board","bonus","brave","brick","brush","cabin","candy","cargo",
@@ -30,34 +30,37 @@ const WORDS = [
   "depot","ember","finch","flame","frost","glyph",
 ];
 
-function pickWord(): string {
-  return WORDS[randomInt(0, WORDS.length)];
+function pickWords(n: number): string[] {
+  return Array.from({ length: n }, () => WORDS[randomInt(0, WORDS.length)]);
 }
 
 /**
- * Generate unique 4-word identifiers like "amber-coral-frost-lunar".
- * @param count Number of identifiers to generate
- * @param existing Set of identifiers already in use (from DB)
- * @returns Array of unique identifier strings
+ * Generate unique 3-word usernames like "amber-coral-frost".
+ * Also generates a 6-word password for each.
+ * @returns Array of { username, password } pairs
  */
-export function generateIdentifiers(count: number, existing: Set<string>): string[] {
-  const ids: string[] = [];
-  const allUsed = new Set(existing);
+export function generateCredentials(
+  count: number,
+  existingUsernames: Set<string>
+): { username: string; password: string }[] {
+  const results: { username: string; password: string }[] = [];
+  const allUsed = new Set(existingUsernames);
   let attempts = 0;
   const maxAttempts = count * 100;
 
-  while (ids.length < count) {
+  while (results.length < count) {
     if (attempts++ > maxAttempts) {
       throw new Error(
-        `Could not generate ${count} unique identifiers after ${maxAttempts} attempts.`
+        `Could not generate ${count} unique credentials after ${maxAttempts} attempts.`
       );
     }
-    const id = [pickWord(), pickWord(), pickWord(), pickWord()].join("-");
-    if (!allUsed.has(id)) {
-      allUsed.add(id);
-      ids.push(id);
+    const username = pickWords(3).join("-");
+    if (!allUsed.has(username)) {
+      allUsed.add(username);
+      const password = pickWords(6).join("-");
+      results.push({ username, password });
     }
   }
 
-  return ids;
+  return results;
 }

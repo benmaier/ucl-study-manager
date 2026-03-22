@@ -1,5 +1,6 @@
 import { prisma } from "../src/lib/prisma.js";
-import { generateIdentifiers } from "./lib/id-generator.js";
+import { generateCredentials } from "./lib/id-generator.js";
+import pg from "pg";
 
 const sessionIdArg = process.argv[2];
 const countIdx = process.argv.indexOf("--count");
@@ -52,32 +53,47 @@ try {
     process.exit(1);
   }
 
-  // Get existing identifiers
+  // Get existing usernames (identifiers)
   const existingIds = await prisma.participant.findMany({
     select: { identifier: true },
   });
   const existingSet = new Set(existingIds.map((p) => p.identifier));
 
-  // Generate unique word-based identifiers
-  const identifiers = generateIdentifiers(count, existingSet);
+  // Generate credentials: 3-word username + 6-word password
+  const credentials = generateCredentials(count, existingSet);
 
-  // Create participants
-  const participants = await prisma.participant.createManyAndReturn({
-    data: identifiers.map((identifier) => ({
-      identifier,
-      sessionId,
-      cohortId: cohort.id,
-    })),
-  });
+  // Create participants in DB
+  const participants = [];
+  for (const cred of credentials) {
+    const dbUser = cred.username.replace(/-/g, "_");
+    const p = await prisma.participant.create({
+      data: {
+        identifier: cred.username,
+        dbUser,
+        dbPassword: cred.password,
+        sessionId,
+        cohortId: cohort.id,
+      },
+    });
+    participants.push({ ...p, password: cred.password });
+  }
+
+  // NOTE: Per-participant PostgreSQL users are NOT created here because
+  // Scaleway Serverless PostgreSQL doesn't support CREATE USER via SQL.
+  // Instead, the Electron app uses a single shared limited-privilege credential.
+  // The dbUser/dbPassword stored on the Participant record are the app-level
+  // credentials participants type to log in (not PostgreSQL credentials).
 
   console.log(
     `\nGenerated ${participants.length} participants for session ${sessionId}, cohort "${cohortId}":`
   );
-  console.log("─".repeat(50));
+  console.log("─".repeat(70));
+  console.log("  Username (identifier)       | Password");
+  console.log("─".repeat(70));
   for (const p of participants) {
-    console.log(`  ${p.identifier}`);
+    console.log(`  ${p.identifier.padEnd(28)} | ${p.password}`);
   }
-  console.log("─".repeat(50));
+  console.log("─".repeat(70));
 } catch (err) {
   if (err instanceof Error) {
     console.error(`Error: ${err.message}`);
