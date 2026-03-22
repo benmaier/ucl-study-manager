@@ -1,0 +1,12 @@
+title: "Code Assistance Study"
+description: "Comparing LLM-assisted coding across providers"
+
+fallback:
+  provider: openai
+  model: gpt-4o
+
+cohorts:
+  - cohorts/ai_trained.yaml
+  - cohorts/ai_untrained.yaml
+  - cohorts/no_ai_trained.yaml
+  - cohorts/no_ai_untrained.yaml

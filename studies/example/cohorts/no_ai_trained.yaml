@@ -1,0 +1,5 @@
+id: no_ai_trained
+label: "No AI + AI Training"
+ai_access: false
+ai_training: true
+study_flow: flows/no_ai_with_training.yaml

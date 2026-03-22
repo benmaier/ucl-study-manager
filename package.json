@@ -1,0 +1,28 @@
+{
+  "name": "ucl-study-manager",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "import-study": "tsx cli/import-study.ts",
+    "create-session": "tsx cli/create-session.ts",
+    "generate-participants": "tsx cli/generate-participants.ts",
+    "export-results": "tsx cli/export-results.ts",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:studio": "prisma studio",
+    "prisma:generate": "prisma generate"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.6.0",
+    "dotenv": "^17.3.1",
+    "yaml": "^2.7.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/pg": "^8.18.0",
+    "pg": "^8.20.0",
+    "prisma": "^6.6.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}

@@ -1,0 +1,159 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Study {
+  id               Int       @id @default(autoincrement())
+  title            String
+  description      String?
+  sourceDir        String?   @map("source_dir")
+  fallbackProvider String?   @map("fallback_provider")
+  fallbackModel    String?   @map("fallback_model")
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  cohorts  Cohort[]
+  sessions StudySession[]
+
+  @@map("studies")
+}
+
+model Cohort {
+  id               Int      @id @default(autoincrement())
+  cohortId         String   @map("cohort_id")
+  label            String
+  aiAccess         Boolean  @map("ai_access")
+  aiTraining       Boolean  @map("ai_training")
+  provider         String?
+  model            String?
+  fallbackProvider String?  @map("fallback_provider")
+  fallbackModel    String?  @map("fallback_model")
+  studyFlowRef     String?  @map("study_flow_ref")
+  studyId          Int      @map("study_id")
+
+  study        Study         @relation(fields: [studyId], references: [id], onDelete: Cascade)
+  stages       Stage[]
+  participants Participant[]
+
+  @@unique([studyId, cohortId])
+  @@map("cohorts")
+}
+
+model Stage {
+  id              Int      @id @default(autoincrement())
+  stageId         String   @map("stage_id")
+  title           String
+  duration        Int      // seconds
+  order           Int
+  contentRef      String?  @map("content_ref")
+  contentText     String?  @map("content_text")
+  chatbot         Boolean  @default(false)
+  questions       String[] @default([])
+  inputLabel      String?  @map("input_label")
+  inputPrompt     String?  @map("input_prompt")
+  linkLabel       String?  @map("link_label")
+  linkUrl         String?  @map("link_url")
+  confirmation    String?
+  cohortId        Int      @map("cohort_id")
+
+  cohort   Cohort              @relation(fields: [cohortId], references: [id], onDelete: Cascade)
+  files    StageFile[]
+  progress ParticipantProgress[]
+  chatLogs ChatLog[]
+
+  @@unique([cohortId, stageId])
+  @@map("stages")
+}
+
+model StageFile {
+  id          Int     @id @default(autoincrement())
+  filename    String
+  description String?
+  sha256      String
+  stageId     Int     @map("stage_id")
+
+  stage Stage @relation(fields: [stageId], references: [id], onDelete: Cascade)
+
+  @@map("stage_files")
+}
+
+model StudySession {
+  id        Int       @id @default(autoincrement())
+  label     String?
+  studyId   Int       @map("study_id")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  study        Study         @relation(fields: [studyId], references: [id], onDelete: Cascade)
+  participants Participant[]
+
+  @@map("study_sessions")
+}
+
+model Participant {
+  id         Int      @id @default(autoincrement())
+  identifier String   @unique
+  name       String?
+  sessionId  Int      @map("session_id")
+  cohortId   Int      @map("cohort_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  session  StudySession          @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  cohort   Cohort                @relation(fields: [cohortId], references: [id], onDelete: Cascade)
+  progress ParticipantProgress[]
+  chatLogs ChatLog[]
+
+  @@map("participants")
+}
+
+model ParticipantProgress {
+  id            Int       @id @default(autoincrement())
+  participantId Int       @map("participant_id")
+  stageId       Int       @map("stage_id")
+  startedAt     DateTime  @default(now()) @map("started_at")
+  completedAt   DateTime? @map("completed_at")
+
+  participant Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  stage       Stage       @relation(fields: [stageId], references: [id], onDelete: Cascade)
+
+  @@unique([participantId, stageId])
+  @@map("participant_progress")
+}
+
+model ChatLog {
+  id            Int      @id @default(autoincrement())
+  participantId Int      @map("participant_id")
+  stageId       Int      @map("stage_id")
+  turnNumber    Int      @map("turn_number")
+  role          String
+  content       String
+  provider      String?
+  model         String?
+  inputTokens   Int?     @map("input_tokens")
+  outputTokens  Int?     @map("output_tokens")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  participant Participant   @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  stage       Stage         @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  files       ChatFileLog[]
+
+  @@map("chat_logs")
+}
+
+model ChatFileLog {
+  id           Int      @id @default(autoincrement())
+  chatLogId    Int      @map("chat_log_id")
+  filename     String
+  isKnownFile  Boolean  @default(false) @map("is_known_file")
+  knownFileRef String?  @map("known_file_ref")
+  base64Data   String?  @map("base64_data")
+  mimeType     String?  @map("mime_type")
+  sha256       String?
+
+  chatLog ChatLog @relation(fields: [chatLogId], references: [id], onDelete: Cascade)
+
+  @@map("chat_file_logs")
+}

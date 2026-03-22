@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.next/
+dist-electron/
+out/
+.env
+.env.local
+*.tsbuildinfo
+exports/
