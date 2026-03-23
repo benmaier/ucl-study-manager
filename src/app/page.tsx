@@ -31,13 +31,17 @@ export default function LoginPage() {
       router.push("/study");
     } catch {
       setError("Connection error. Please try again.");
-    } finally {
       setLoading(false);
     }
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-white">
+    <main className="relative flex min-h-screen items-center justify-center bg-white">
+      {loading && (
+        <div className="absolute top-4 right-4">
+          <div className="h-4 w-4 animate-spin rounded-full border-2 border-muted border-t-heading" />
+        </div>
+      )}
       <form onSubmit={handleSubmit} className="w-full max-w-md space-y-6 px-8">
         <h1 className="text-4xl font-normal text-heading text-center">
           UCL Study Manager
