@@ -1,0 +1,32 @@
+appId: com.ucl.study-manager
+productName: "UCL Study Manager"
+
+directories:
+  output: dist-electron
+
+files:
+  - electron/**/*
+  - "!node_modules"
+  - "!src"
+  - "!cli"
+  - "!studies"
+  - "!tests"
+  - "!prisma"
+  - "!sql"
+  - "!scripts"
+  - "!.next"
+  - "!.env"
+  - "!.env.example"
+
+# standalone dir is copied manually in build.sh after packaging
+asar: false
+
+mac:
+  target: dir
+  identity: null
+
+win:
+  target: nsis
+
+linux:
+  target: AppImage

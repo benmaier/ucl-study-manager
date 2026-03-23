@@ -1,6 +1,6 @@
 import { prisma } from "../src/lib/prisma.js";
 import { generateCredentials } from "./lib/id-generator.js";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 
 const sessionIdArg = process.argv[2];
 const countIdx = process.argv.indexOf("--count");
