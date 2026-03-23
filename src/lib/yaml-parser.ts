@@ -19,7 +19,7 @@ class ValidationError extends Error {
   }
 }
 
-function parseDuration(duration: string): number {
+export function parseDuration(duration: string): number {
   const match = duration.match(/^(\d+):(\d{2})$/);
   if (!match) {
     throw new ValidationError(
