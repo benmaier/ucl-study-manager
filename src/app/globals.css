@@ -1,0 +1,14 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", sans-serif;
+  --color-sidebar-bg: #fffff9;
+  --color-heading: #152509;
+  --color-body: rgba(0, 0, 0, 0.8);
+  --color-muted: #cfcbbe;
+  --color-btn-active-bg: #324624;
+  --color-btn-active-text: #ffffff;
+  --color-btn-inactive-bg: #cfcbbe;
+  --color-btn-inactive-text: #535353;
+  --color-input-border: #495e39;
+}
