@@ -37,11 +37,6 @@ export default function LoginPage() {
 
   return (
     <main className="relative flex min-h-screen items-center justify-center bg-white">
-      {loading && (
-        <div className="absolute top-4 right-4">
-          <div className="h-4 w-4 animate-spin rounded-full border-2 border-muted border-t-heading" />
-        </div>
-      )}
       <form onSubmit={handleSubmit} className="w-full max-w-md space-y-6 px-8">
         <h1 className="text-4xl font-normal text-heading text-center">
           UCL Study Manager
@@ -86,13 +81,18 @@ export default function LoginPage() {
           <p className="text-sm text-red-600 text-center">{error}</p>
         )}
 
-        <button
-          type="submit"
-          disabled={loading || !identifier || !password}
-          className="w-full rounded-[5px] bg-btn-active-bg py-3 text-sm font-medium text-btn-active-text disabled:bg-btn-inactive-bg disabled:text-btn-inactive-text"
-        >
-          {loading ? "Signing in..." : "Sign in"}
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            type="submit"
+            disabled={loading || !identifier || !password}
+            className="flex-1 rounded-[5px] bg-btn-active-bg py-3 text-sm font-medium text-btn-active-text disabled:bg-btn-inactive-bg disabled:text-btn-inactive-text"
+          >
+            {loading ? "Signing in..." : "Sign in"}
+          </button>
+          {loading && (
+            <div className="h-5 w-5 animate-spin rounded-full border-2 border-muted border-t-heading" />
+          )}
+        </div>
       </form>
     </main>
   );
