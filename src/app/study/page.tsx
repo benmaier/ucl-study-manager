@@ -57,10 +57,6 @@ export default async function StudyPage() {
 
       {/* Content area */}
       <main className="flex-1 p-12">
-        <p className="text-sm text-muted mb-2">
-          Signed in as <span className="font-medium text-heading">{participant.identifier}</span>
-          {" "}({participant.cohort.label})
-        </p>
         <h1 className="text-4xl font-normal text-heading mb-4">
           {participant.session.study.title}
         </h1>

@@ -1,6 +1,6 @@
 import { prisma } from "../src/lib/prisma.js";
 import { generateCredentials } from "./lib/id-generator.js";
-import pg from "pg";
+import bcrypt from "bcrypt";
 
 const sessionIdArg = process.argv[2];
 const countIdx = process.argv.indexOf("--count");
@@ -62,27 +62,22 @@ try {
   // Generate credentials: 3-word username + 6-word password
   const credentials = generateCredentials(count, existingSet);
 
-  // Create participants in DB
+  // Create participants in DB (password stored as bcrypt hash)
   const participants = [];
   for (const cred of credentials) {
     const dbUser = cred.username.replace(/-/g, "_");
+    const passwordHash = await bcrypt.hash(cred.password, 10);
     const p = await prisma.participant.create({
       data: {
         identifier: cred.username,
         dbUser,
-        dbPassword: cred.password,
+        dbPassword: passwordHash,
         sessionId,
         cohortId: cohort.id,
       },
     });
-    participants.push({ ...p, password: cred.password });
+    participants.push({ ...p, plaintextPassword: cred.password });
   }
-
-  // NOTE: Per-participant PostgreSQL users are NOT created here because
-  // Scaleway Serverless PostgreSQL doesn't support CREATE USER via SQL.
-  // Instead, the Electron app uses a single shared limited-privilege credential.
-  // The dbUser/dbPassword stored on the Participant record are the app-level
-  // credentials participants type to log in (not PostgreSQL credentials).
 
   console.log(
     `\nGenerated ${participants.length} participants for session ${sessionId}, cohort "${cohortId}":`
@@ -91,7 +86,7 @@ try {
   console.log("  Username (identifier)       | Password");
   console.log("─".repeat(70));
   for (const p of participants) {
-    console.log(`  ${p.identifier.padEnd(28)} | ${p.password}`);
+    console.log(`  ${p.identifier.padEnd(28)} | ${p.plaintextPassword}`);
   }
   console.log("─".repeat(70));
 } catch (err) {

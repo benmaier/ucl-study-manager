@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import bcrypt from "bcrypt";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(request: NextRequest) {
@@ -26,7 +27,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Identifier not found." }, { status: 404 });
   }
 
-  if (participant.dbPassword !== password) {
+  if (!participant.dbPassword || !(await bcrypt.compare(password, participant.dbPassword))) {
     return NextResponse.json({ error: "Incorrect password." }, { status: 401 });
   }
 
