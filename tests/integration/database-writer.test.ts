@@ -34,7 +34,7 @@ beforeAll(async () => {
     );
   }
 
-  const chatStage = participant.cohort.stages.find((s) => s.chatbot);
+  const chatStage = participant.cohort.stages.find((s) => (s.config as Record<string, unknown>)?.chatbot);
   if (!chatStage) {
     throw new Error("No chatbot-enabled stage found.");
   }

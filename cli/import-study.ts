@@ -69,21 +69,17 @@ try {
 
       // Create stages from flow
       for (const s of c.stages) {
+        // Store everything except title/duration/order/contentText as config JSON
+        const { stageId: _sid, title: _t, durationSeconds: _d, order: _o, contentRef: _cr, contentText: _ct, ...config } = s;
+
         const stage = await tx.stage.create({
           data: {
             stageId: s.stageId,
             title: s.title,
             duration: s.durationSeconds,
             order: s.order,
-            contentRef: s.contentRef,
             contentText: s.contentText,
-            chatbot: s.chatbot,
-            questions: s.questions,
-            inputLabel: s.input?.label ?? null,
-            inputPrompt: s.input?.prompt ?? null,
-            linkLabel: s.link?.label ?? null,
-            linkUrl: s.link?.url ?? null,
-            confirmation: s.confirmation,
+            config,
             cohortId: cohort.id,
           },
         });

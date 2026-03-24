@@ -44,21 +44,14 @@ model Cohort {
 }
 
 model Stage {
-  id              Int      @id @default(autoincrement())
-  stageId         String   @map("stage_id")
-  title           String
-  duration        Int      // seconds
-  order           Int
-  contentRef      String?  @map("content_ref")
-  contentText     String?  @map("content_text")
-  chatbot         Boolean  @default(false)
-  questions       String[] @default([])
-  inputLabel      String?  @map("input_label")
-  inputPrompt     String?  @map("input_prompt")
-  linkLabel       String?  @map("link_label")
-  linkUrl         String?  @map("link_url")
-  confirmation    String?
-  cohortId        Int      @map("cohort_id")
+  id          Int    @id @default(autoincrement())
+  stageId     String @map("stage_id")
+  title       String
+  duration    Int    // seconds
+  order       Int
+  contentText String? @map("content_text")
+  config      Json   @default("{}")  // everything else: chatbot, questions, input, link, confirmation, files, etc.
+  cohortId    Int    @map("cohort_id")
 
   cohort   Cohort              @relation(fields: [cohortId], references: [id], onDelete: Cascade)
   files    StageFile[]
@@ -117,7 +110,7 @@ model ParticipantProgress {
   stageId       Int       @map("stage_id")
   startedAt     DateTime  @default(now()) @map("started_at")
   completedAt   DateTime? @map("completed_at")
-  inputAnswer   String?   @map("input_answer")
+  responses     Json?     // flexible: {inputAnswer: "...", ratings: [...], etc.}
 
   participant Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
   stage       Stage       @relation(fields: [stageId], references: [id], onDelete: Cascade)
