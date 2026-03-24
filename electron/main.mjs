@@ -45,7 +45,7 @@ function spawnNextServer({ name, port, cwd, extraEnv = {} }) {
     let proc;
 
     if (isProd) {
-      const standaloneDir = join(process.resourcesPath, `${name}-standalone`);
+      const standaloneDir = join(process.resourcesPath, "standalone");
       const serverJs = join(standaloneDir, "server.js");
 
       if (!existsSync(serverJs)) {
