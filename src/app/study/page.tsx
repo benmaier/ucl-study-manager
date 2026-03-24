@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getParticipant } from "@/lib/auth";
+import OpenChatButton from "@/components/OpenChatButton";
 
 export default async function StudyPage() {
   const participant = await getParticipant();
@@ -60,9 +61,10 @@ export default async function StudyPage() {
         <h1 className="text-4xl font-normal text-heading mb-4">
           {participant.session.study.title}
         </h1>
-        <p className="text-body">
+        <p className="text-body mb-6">
           {stages.length} stages in your study flow. Stage display coming next.
         </p>
+        <OpenChatButton />
       </main>
     </div>
   );
