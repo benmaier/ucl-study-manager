@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
       stageId: p.stageId,
       startedAt: p.startedAt.toISOString(),
       completedAt: p.completedAt?.toISOString() ?? null,
-      inputAnswer: p.inputAnswer,
+      responses: p.responses,
     })),
   });
 

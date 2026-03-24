@@ -79,7 +79,7 @@ try {
             duration: s.durationSeconds,
             order: s.order,
             contentText: s.contentText,
-            config,
+            config: JSON.parse(JSON.stringify(config)),
             cohortId: cohort.id,
           },
         });

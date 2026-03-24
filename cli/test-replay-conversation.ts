@@ -39,8 +39,8 @@ async function main() {
     process.exit(1);
   }
 
-  const chatStage = participant.cohort.stages.find((s) => s.chatbot && s.files.length > 0)
-    ?? participant.cohort.stages.find((s) => s.chatbot);
+  const chatStage = participant.cohort.stages.find((s) => (s.config as Record<string, unknown>)?.chatbot && s.files.length > 0)
+    ?? participant.cohort.stages.find((s) => (s.config as Record<string, unknown>)?.chatbot);
 
   if (!chatStage) {
     console.error("No chatbot-enabled stage found.");

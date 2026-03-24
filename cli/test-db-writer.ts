@@ -34,7 +34,7 @@ async function main() {
   console.log(`Using participant: ${participant.identifier} (cohort: ${participant.cohort.cohortId})`);
 
   // Find a chatbot-enabled stage
-  const chatStage = participant.cohort.stages.find((s) => s.chatbot);
+  const chatStage = participant.cohort.stages.find((s) => (s.config as Record<string, unknown>)?.chatbot);
   if (!chatStage) {
     console.error("No chatbot-enabled stage found for this cohort.");
     process.exit(1);
@@ -116,47 +116,7 @@ async function main() {
   await writer.onTurnComplete("test-conversation-001", turn2, mockConversation);
   console.log("✓ Turn 2 written (with generated file — should be stored as unknown)");
 
-  // Simulate turn 3: assistant references a known stage file
-  // Use the actual hash of a stage file to test deduplication
-  const knownFileHash = chatStage.files[0]?.sha256;
-  const knownFileName = chatStage.files[0]?.filename;
-
-  if (knownFileHash && knownFileName) {
-    const turn3: TurnRecord = {
-      turnNumber: 3,
-      startedAt: new Date().toISOString(),
-      completedAt: new Date().toISOString(),
-      userMessage: "Show me the raw data.",
-      attachedFileIds: [],
-      assistantText: "Here's the original data file.",
-      codeArtifacts: [],
-      generatedFiles: [
-        {
-          fileId: "known-file-ref",
-          filename: "data_copy.csv",
-          mimeType: "text/csv",
-          // Create data with the SAME hash as the known stage file
-          base64Data: Buffer.from(
-            require("fs").readFileSync(
-              require("path").join(
-                participant.cohort.stages[0]?.contentRef
-                  ? require("path").dirname(participant.cohort.stages[0].contentRef)
-                  : ".",
-                knownFileName
-              )
-            )
-          ).toString("base64"),
-        },
-      ],
-      provider: "anthropic",
-      model: "claude-sonnet-4-20250514",
-      providerStateAfter: {},
-    };
-
-    // Actually, we can't easily recreate the exact file content here.
-    // Instead, let's just test that unknown files are stored correctly.
-    console.log("  (Skipping known-file dedup test — would need actual file content)");
-  }
+  // Known-file dedup is tested in the integration test suite (tests/integration/database-writer.test.ts)
 
   // Verify: query chat_logs
   const logs = await pool.query(
