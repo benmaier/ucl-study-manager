@@ -30,7 +30,7 @@ export class DatabaseWriter extends ConversationWriter {
   }
 
   async onTurnComplete(
-    _conversationId: string,
+    conversationId: string,
     turn: TurnRecord,
     _conversation: SerializedConversation
   ): Promise<void> {
@@ -40,10 +40,11 @@ export class DatabaseWriter extends ConversationWriter {
 
       // Insert user message
       const userResult = await client.query(
-        `INSERT INTO chat_logs (participant_id, stage_id, turn_number, role, content, provider, model, created_at)
-         VALUES ($1, $2, $3, 'user', $4, $5, $6, $7)
+        `INSERT INTO chat_logs (conversation_id, participant_id, stage_id, turn_number, role, content, provider, model, created_at)
+         VALUES ($1, $2, $3, $4, 'user', $5, $6, $7, $8)
          RETURNING id`,
         [
+          conversationId,
           this.participantId,
           this.stageId,
           turn.turnNumber,
@@ -68,10 +69,11 @@ export class DatabaseWriter extends ConversationWriter {
 
       // Insert assistant message
       const assistantResult = await client.query(
-        `INSERT INTO chat_logs (participant_id, stage_id, turn_number, role, content, provider, model, created_at)
-         VALUES ($1, $2, $3, 'assistant', $4, $5, $6, $7)
+        `INSERT INTO chat_logs (conversation_id, participant_id, stage_id, turn_number, role, content, provider, model, created_at)
+         VALUES ($1, $2, $3, $4, 'assistant', $5, $6, $7, $8)
          RETURNING id`,
         [
+          conversationId,
           this.participantId,
           this.stageId,
           turn.turnNumber,

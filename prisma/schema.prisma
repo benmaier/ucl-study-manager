@@ -120,17 +120,18 @@ model ParticipantProgress {
 }
 
 model ChatLog {
-  id            Int      @id @default(autoincrement())
-  participantId Int      @map("participant_id")
-  stageId       Int      @map("stage_id")
-  turnNumber    Int      @map("turn_number")
-  role          String
-  content       String
-  provider      String?
-  model         String?
-  inputTokens   Int?     @map("input_tokens")
-  outputTokens  Int?     @map("output_tokens")
-  createdAt     DateTime @default(now()) @map("created_at")
+  id             Int      @id @default(autoincrement())
+  conversationId String   @map("conversation_id") // groups turns into a single chat session
+  participantId  Int      @map("participant_id")
+  stageId        Int      @map("stage_id")
+  turnNumber     Int      @map("turn_number")
+  role           String
+  content        String
+  provider       String?
+  model          String?
+  inputTokens    Int?     @map("input_tokens")
+  outputTokens   Int?     @map("output_tokens")
+  createdAt      DateTime @default(now()) @map("created_at")
 
   participant Participant   @relation(fields: [participantId], references: [id], onDelete: Cascade)
   stage       Stage         @relation(fields: [stageId], references: [id], onDelete: Cascade)
