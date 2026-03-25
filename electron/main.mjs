@@ -8,14 +8,9 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
 const isProd = app.isPackaged;
 
-// Resolve the frontend repo path (sibling directory)
-const FRONTEND_DIR = join(ROOT, "..", "ucl-study-llm-chat-frontend");
-
 let studyProcess = null;
-let chatProcess = null;
 let chatWindow = null;
 const STUDY_PORT = 3000;
-const CHAT_PORT = 3001;
 
 function readConfig() {
   const configPath = join(app.getPath("userData"), "config.json");
@@ -99,10 +94,14 @@ function spawnNextServer({ name, port, cwd, extraEnv = {} }) {
   });
 }
 
+const TAB_ID = "ucl-study-manager";
+
 function createStudyWindow() {
   const win = new BrowserWindow({
     width: 1440,
     height: 900,
+    title: "Study",
+    tabbingIdentifier: TAB_ID,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -114,26 +113,22 @@ function createStudyWindow() {
 }
 
 function openChatWindow(params = {}) {
-  // Build query string from params
-  const query = new URLSearchParams(params).toString();
-  const url = `http://localhost:${CHAT_PORT}${query ? `?${query}` : ""}`;
-
   if (chatWindow && !chatWindow.isDestroyed()) {
-    chatWindow.loadURL(url);
     chatWindow.focus();
     return;
   }
 
   chatWindow = new BrowserWindow({
-    width: 1200,
+    width: 1440,
     height: 900,
     title: "AI Assistant",
+    tabbingIdentifier: TAB_ID,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
     },
   });
-  chatWindow.loadURL(url);
+  chatWindow.loadURL(`http://localhost:${STUDY_PORT}/chat`);
   chatWindow.on("closed", () => { chatWindow = null; });
 }
 
@@ -144,7 +139,6 @@ ipcMain.handle("open-chat", (_event, params) => {
 
 function killAll() {
   if (studyProcess) { studyProcess.kill(); studyProcess = null; }
-  if (chatProcess) { chatProcess.kill(); chatProcess = null; }
 }
 
 app.whenReady().then(async () => {
@@ -166,31 +160,12 @@ app.whenReady().then(async () => {
   }
 
   try {
-    // Start study manager server
+    // Start study manager server (chat widget runs inside it on /chat)
     studyProcess = await spawnNextServer({
       name: "study",
       port: STUDY_PORT,
       cwd: ROOT,
     });
-
-    // Start chat frontend server (if available)
-    const chatCwd = isProd ? null : FRONTEND_DIR;
-    if (!isProd && existsSync(FRONTEND_DIR)) {
-      chatProcess = await spawnNextServer({
-        name: "chat",
-        port: CHAT_PORT,
-        cwd: FRONTEND_DIR,
-        extraEnv: { STUDY_MANAGER_MODE: "true" },
-      });
-    } else if (isProd) {
-      // Production: spawn from standalone
-      chatProcess = await spawnNextServer({
-        name: "chat",
-        port: CHAT_PORT,
-        cwd: ROOT, // not used in prod (standalone has its own cwd)
-        extraEnv: { STUDY_MANAGER_MODE: "true" },
-      });
-    }
   } catch (err) {
     dialog.showErrorBox("Failed to start", err.message);
     killAll();
