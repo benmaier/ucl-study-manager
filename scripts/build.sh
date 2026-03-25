@@ -18,6 +18,9 @@ echo "=== Copying static assets into standalone ==="
 cp -r .next/static .next/standalone/.next/static
 [ -d public ] && cp -r public .next/standalone/public || true
 
+echo "=== Removing .env from standalone (config comes from Electron) ==="
+rm -f .next/standalone/.env
+
 echo "=== Resolving symlinks in standalone ==="
 cd .next/standalone
 find . -type l | while read -r link; do

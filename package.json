@@ -20,6 +20,7 @@
   },
   "main": "electron/main.mjs",
   "dependencies": {
+    "@prisma/adapter-pg": "^7.5.0",
     "@prisma/client": "^6.6.0",
     "bcryptjs": "^3.0.3",
     "dotenv": "^17.3.1",
