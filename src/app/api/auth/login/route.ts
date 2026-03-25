@@ -66,8 +66,7 @@ export async function POST(request: NextRequest) {
         }[participant.cohort.provider];
         if (envKey && apiKey) {
           process.env[envKey] = apiKey;
-          process.env.CHAT_PROVIDER = participant.cohort.provider;
-          dbg(`Set ${envKey} and CHAT_PROVIDER=${participant.cohort.provider}`);
+          dbg(`Set ${envKey} for provider=${participant.cohort.provider}`);
         }
       } catch (err) {
         dbg(`Key pool error: ${(err as Error).message}`);
@@ -116,6 +115,16 @@ export async function POST(request: NextRequest) {
       path: "/",
       maxAge: 60 * 60 * 24,
     });
+
+    // Store provider so the chat route knows which LLM to use per-participant
+    if (participant.cohort.provider) {
+      response.cookies.set("chat_provider", participant.cohort.provider, {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        maxAge: 60 * 60 * 24,
+      });
+    }
 
     dbg("Response sent successfully");
     return response;

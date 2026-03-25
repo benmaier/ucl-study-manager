@@ -1,14 +1,17 @@
 import type { ChatRouteConfig } from "ucl-chat-widget/server";
+import { cookies } from "next/headers";
 
 /**
- * Chat configuration for the widget.
- *
- * Returns a fresh config each time so it picks up env vars
- * set dynamically at login (CHAT_PROVIDER, API keys).
+ * Build chat config per-request.
+ * Provider comes from the participant's cohort (stored in cookie at login).
+ * API keys come from the DB key pool (set in process.env at login).
  */
-export function getChatConfig(): ChatRouteConfig {
+export async function getChatConfig(): Promise<ChatRouteConfig> {
+  const cookieStore = await cookies();
+  const provider = cookieStore.get("chat_provider")?.value as "anthropic" | "openai" | "gemini" | undefined;
+
   return {
-    provider: (process.env.CHAT_PROVIDER as "anthropic" | "openai" | "gemini") || "anthropic",
+    provider: provider || "anthropic",
     conversationsDir: process.env.CONVERSATIONS_DIR || "data/conversations",
     traceDir: process.env.TRACE_DIR,
     debugStreams: !!process.env.DEBUG_STREAMS,
