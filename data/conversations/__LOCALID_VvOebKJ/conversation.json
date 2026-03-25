@@ -1,0 +1,55 @@
+{
+  "formatVersion": 1,
+  "id": "__LOCALID_VvOebKJ",
+  "provider": "openai",
+  "createdAt": "2026-03-24T23:57:37.600Z",
+  "updatedAt": "2026-03-24T23:57:56.819Z",
+  "uploads": [],
+  "turns": [
+    {
+      "turnNumber": 1,
+      "startedAt": "2026-03-24T23:57:37.603Z",
+      "completedAt": "2026-03-24T23:57:56.819Z",
+      "userMessage": "can you please write a poem about data science",
+      "attachedFileIds": [],
+      "assistantText": "The data arrive like rain on a tin roof—\nloud, uneven, missing whole afternoons.\nYou roll out the mop and call it a pipeline,\nstrain the leaves from the gutters of CSV.\n\nNulls drift in like winter fog; you warm them\nwith simple means, or let a tree decide.\nOutliers rattle the panes. You listen:\nare they thunder, or just a truck on the hill?\n\nCorrelation hums a sweet, familiar chord.\nYou do not mistake it for a door.\nInstead, you sketch a small cathedral of arrows—\na DAG where causation prays for permission.\n\nNow comes the climb: loss like a valley,\ngradients like ants finding a way home.\nYou tighten the laces—lambda, dropout—\nand prune the vine so fruit stays honest.\n\nCross-validation is the pilgrim’s passport,\nstamped on every fold of the road.\nA confusion matrix is a four-room house:\ntruth sleeps in one, error knocks in another.\n\nROC curves unfurl like river bends;\nyou choose a threshold where ferries can pass.\nThe metrics applaud in careful decimals,\nbut you still ask the data to tell you a story.\n\nBias is an old seed sewn in a young field.\nFairness means kneeling to pull what you can,\nknowing some roots run deep and knotted\nunder histories you did not plant.\n\nIn the end, you speak in pictures:\na line soft as dusk across a scatter,\na violin trembling with hidden crowds.\nYou do not promise sun, only lanterns.\n\nFor the world is not a spreadsheet,\nonly sometimes willing to be sorted.\nSo you leave white space for uncertainty,\nand sign the margin: here be wonder, here be doubt.",
+      "codeArtifacts": [],
+      "generatedFiles": [],
+      "provider": "openai",
+      "providerStateAfter": {
+        "openaiResponseId": "resp_07b8cab3ff0fb7340069c324f259e48190a51039f39c8e09ae",
+        "openaiOutput": [
+          {
+            "id": "rs_07b8cab3ff0fb7340069c324f3f4f4819088c2f8819a277839",
+            "type": "reasoning",
+            "summary": []
+          },
+          {
+            "id": "msg_07b8cab3ff0fb7340069c324fcaed08190a25650b78f955c5c",
+            "type": "message",
+            "status": "completed",
+            "content": [
+              {
+                "type": "output_text",
+                "annotations": [],
+                "logprobs": [],
+                "text": "The data arrive like rain on a tin roof—\nloud, uneven, missing whole afternoons.\nYou roll out the mop and call it a pipeline,\nstrain the leaves from the gutters of CSV.\n\nNulls drift in like winter fog; you warm them\nwith simple means, or let a tree decide.\nOutliers rattle the panes. You listen:\nare they thunder, or just a truck on the hill?\n\nCorrelation hums a sweet, familiar chord.\nYou do not mistake it for a door.\nInstead, you sketch a small cathedral of arrows—\na DAG where causation prays for permission.\n\nNow comes the climb: loss like a valley,\ngradients like ants finding a way home.\nYou tighten the laces—lambda, dropout—\nand prune the vine so fruit stays honest.\n\nCross-validation is the pilgrim’s passport,\nstamped on every fold of the road.\nA confusion matrix is a four-room house:\ntruth sleeps in one, error knocks in another.\n\nROC curves unfurl like river bends;\nyou choose a threshold where ferries can pass.\nThe metrics applaud in careful decimals,\nbut you still ask the data to tell you a story.\n\nBias is an old seed sewn in a young field.\nFairness means kneeling to pull what you can,\nknowing some roots run deep and knotted\nunder histories you did not plant.\n\nIn the end, you speak in pictures:\na line soft as dusk across a scatter,\na violin trembling with hidden crowds.\nYou do not promise sun, only lanterns.\n\nFor the world is not a spreadsheet,\nonly sometimes willing to be sorted.\nSo you leave white space for uncertainty,\nand sign the margin: here be wonder, here be doubt."
+              }
+            ],
+            "role": "assistant"
+          }
+        ]
+      }
+    }
+  ],
+  "textHistory": [
+    {
+      "role": "user",
+      "content": "can you please write a poem about data science"
+    },
+    {
+      "role": "assistant",
+      "content": "The data arrive like rain on a tin roof—\nloud, uneven, missing whole afternoons.\nYou roll out the mop and call it a pipeline,\nstrain the leaves from the gutters of CSV.\n\nNulls drift in like winter fog; you warm them\nwith simple means, or let a tree decide.\nOutliers rattle the panes. You listen:\nare they thunder, or just a truck on the hill?\n\nCorrelation hums a sweet, familiar chord.\nYou do not mistake it for a door.\nInstead, you sketch a small cathedral of arrows—\na DAG where causation prays for permission.\n\nNow comes the climb: loss like a valley,\ngradients like ants finding a way home.\nYou tighten the laces—lambda, dropout—\nand prune the vine so fruit stays honest.\n\nCross-validation is the pilgrim’s passport,\nstamped on every fold of the road.\nA confusion matrix is a four-room house:\ntruth sleeps in one, error knocks in another.\n\nROC curves unfurl like river bends;\nyou choose a threshold where ferries can pass.\nThe metrics applaud in careful decimals,\nbut you still ask the data to tell you a story.\n\nBias is an old seed sewn in a young field.\nFairness means kneeling to pull what you can,\nknowing some roots run deep and knotted\nunder histories you did not plant.\n\nIn the end, you speak in pictures:\na line soft as dusk across a scatter,\na violin trembling with hidden crowds.\nYou do not promise sun, only lanterns.\n\nFor the world is not a spreadsheet,\nonly sometimes willing to be sorted.\nSo you leave white space for uncertainty,\nand sign the margin: here be wonder, here be doubt."
+    }
+  ]
+}
