@@ -1,0 +1,118 @@
+name: Build Electron Apps
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+            platform: mac
+            artifact: dist-electron/mac-arm64/*.app
+          - os: windows-latest
+            platform: win
+            artifact: dist-electron/*.exe
+          - os: ubuntu-latest
+            platform: linux
+            artifact: dist-electron/*.AppImage
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Build Next.js
+        run: npx next build
+
+      - name: Copy static assets
+        run: |
+          cp -r .next/static .next/standalone/.next/static
+          [ -d public ] && cp -r public .next/standalone/public || true
+
+      - name: Remove .env from standalone
+        run: rm -f .next/standalone/.env
+
+      - name: Resolve symlinks (macOS/Linux)
+        if: runner.os != 'Windows'
+        run: |
+          cd .next/standalone
+          find . -type l | while read -r link; do
+            target=$(readlink "$link")
+            if [ -e "$link" ]; then
+              rm "$link"
+              cp -r "$(dirname "$link")/$target" "$link"
+            fi
+          done
+
+      - name: Package Electron app
+        run: npx electron-builder --${{ matrix.platform }} --config electron-builder.yml
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Copy standalone into packaged app (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          APP="dist-electron/mac-arm64/UCL Study Manager.app/Contents/Resources/standalone"
+          rm -rf "$APP"
+          cp -r .next/standalone "$APP"
+
+      - name: Copy standalone into packaged app (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          if (Test-Path "dist-electron/win-unpacked") {
+            Remove-Item -Recurse -Force "dist-electron/win-unpacked/resources/standalone" -ErrorAction SilentlyContinue
+            Copy-Item -Recurse ".next/standalone" "dist-electron/win-unpacked/resources/standalone"
+          }
+
+      - name: Copy standalone into packaged app (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          if [ -d "dist-electron/linux-unpacked" ]; then
+            rm -rf "dist-electron/linux-unpacked/resources/standalone"
+            cp -r .next/standalone "dist-electron/linux-unpacked/resources/standalone"
+          fi
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ucl-study-manager-${{ matrix.platform }}
+          path: |
+            dist-electron/*.exe
+            dist-electron/*.dmg
+            dist-electron/*.AppImage
+            dist-electron/mac-arm64/*.app
+          if-no-files-found: warn
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/**/*
+          draft: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -18,15 +18,20 @@ files:
   - "!.env"
   - "!.env.example"
 
-# standalone dir is copied manually in build.sh after packaging
 asar: false
 
 mac:
-  target: dir
+  target:
+    - target: dir
+      arch: [arm64, x64]
   identity: null
 
 win:
-  target: nsis
+  target:
+    - target: nsis
+      arch: [x64]
 
 linux:
-  target: AppImage
+  target:
+    - target: AppImage
+      arch: [x64]
