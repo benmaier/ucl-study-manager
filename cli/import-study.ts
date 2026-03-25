@@ -14,96 +14,89 @@ try {
     `Parsed study: "${parsed.title}" (${parsed.cohorts.length} cohorts, ${parsed.cohorts.reduce((n, c) => n + c.stages.length, 0)} total stages)`
   );
 
-  const study = await prisma.$transaction(async (tx) => {
-    // Upsert study by title
-    const existing = await tx.study.findFirst({ where: { title: parsed.title } });
-    const study = await tx.study.upsert({
-      where: { id: existing?.id ?? 0 },
+  // Upsert study
+  const existing = await prisma.study.findFirst({ where: { title: parsed.title } });
+  const study = await prisma.study.upsert({
+    where: { id: existing?.id ?? 0 },
+    create: {
+      title: parsed.title,
+      description: parsed.description,
+      sourceDir: parsed.sourceDir,
+      fallbackProvider: parsed.fallbackProvider,
+      fallbackModel: parsed.fallbackModel,
+    },
+    update: {
+      description: parsed.description,
+      sourceDir: parsed.sourceDir,
+      fallbackProvider: parsed.fallbackProvider,
+      fallbackModel: parsed.fallbackModel,
+    },
+  });
+
+  // Upsert cohorts and their stages
+  for (const c of parsed.cohorts) {
+    const cohort = await prisma.cohort.upsert({
+      where: { studyId_cohortId: { studyId: study.id, cohortId: c.cohortId } },
       create: {
-        title: parsed.title,
-        description: parsed.description,
-        sourceDir: parsed.sourceDir,
-        fallbackProvider: parsed.fallbackProvider,
-        fallbackModel: parsed.fallbackModel,
+        cohortId: c.cohortId,
+        label: c.label,
+        aiAccess: c.aiAccess,
+        aiTraining: c.aiTraining,
+        provider: c.provider,
+        model: c.model,
+        fallbackProvider: c.fallbackProvider,
+        fallbackModel: c.fallbackModel,
+        studyFlowRef: c.studyFlowRef,
+        studyId: study.id,
       },
       update: {
-        description: parsed.description,
-        sourceDir: parsed.sourceDir,
-        fallbackProvider: parsed.fallbackProvider,
-        fallbackModel: parsed.fallbackModel,
+        label: c.label,
+        aiAccess: c.aiAccess,
+        aiTraining: c.aiTraining,
+        provider: c.provider,
+        model: c.model,
+        fallbackProvider: c.fallbackProvider,
+        fallbackModel: c.fallbackModel,
+        studyFlowRef: c.studyFlowRef,
       },
     });
 
-    // Upsert cohorts (preserve IDs so participant references survive re-import)
-    const cohortDbIds = new Map<string, number>();
-    for (const c of parsed.cohorts) {
-      const cohort = await tx.cohort.upsert({
-        where: { studyId_cohortId: { studyId: study.id, cohortId: c.cohortId } },
-        create: {
-          cohortId: c.cohortId,
-          label: c.label,
-          aiAccess: c.aiAccess,
-          aiTraining: c.aiTraining,
-          provider: c.provider,
-          model: c.model,
-          fallbackProvider: c.fallbackProvider,
-          fallbackModel: c.fallbackModel,
-          studyFlowRef: c.studyFlowRef,
-          studyId: study.id,
-        },
-        update: {
-          label: c.label,
-          aiAccess: c.aiAccess,
-          aiTraining: c.aiTraining,
-          provider: c.provider,
-          model: c.model,
-          fallbackProvider: c.fallbackProvider,
-          fallbackModel: c.fallbackModel,
-          studyFlowRef: c.studyFlowRef,
+    // Delete existing stages for this cohort
+    await prisma.stage.deleteMany({ where: { cohortId: cohort.id } });
+
+    // Create stages from flow
+    for (const s of c.stages) {
+      const { stageId: _sid, title: _t, durationSeconds: _d, order: _o, contentRef: _cr, contentText: _ct, ...config } = s;
+
+      const stage = await prisma.stage.create({
+        data: {
+          stageId: s.stageId,
+          title: s.title,
+          duration: s.durationSeconds,
+          order: s.order,
+          contentText: s.contentText,
+          config: JSON.parse(JSON.stringify(config)),
+          cohortId: cohort.id,
         },
       });
-      cohortDbIds.set(c.cohortId, cohort.id);
 
-      // Delete existing stages for this cohort (safe — stages don't own participants)
-      await tx.stage.deleteMany({ where: { cohortId: cohort.id } });
-
-      // Create stages from flow
-      for (const s of c.stages) {
-        // Store everything except title/duration/order/contentText as config JSON
-        const { stageId: _sid, title: _t, durationSeconds: _d, order: _o, contentRef: _cr, contentText: _ct, ...config } = s;
-
-        const stage = await tx.stage.create({
+      for (const f of s.files) {
+        await prisma.stageFile.create({
           data: {
-            stageId: s.stageId,
-            title: s.title,
-            duration: s.durationSeconds,
-            order: s.order,
-            contentText: s.contentText,
-            config: JSON.parse(JSON.stringify(config)),
-            cohortId: cohort.id,
+            filename: f.filename,
+            description: f.description,
+            sha256: f.sha256,
+            stageId: stage.id,
           },
         });
-
-        for (const f of s.files) {
-          await tx.stageFile.create({
-            data: {
-              filename: f.filename,
-              description: f.description,
-              sha256: f.sha256,
-              stageId: stage.id,
-            },
-          });
-        }
       }
     }
+  }
 
-    // Remove cohorts no longer in YAML
-    const yamlCohortIds = parsed.cohorts.map((c) => c.cohortId);
-    await tx.cohort.deleteMany({
-      where: { studyId: study.id, cohortId: { notIn: yamlCohortIds } },
-    });
-
-    return study;
+  // Remove cohorts no longer in YAML
+  const yamlCohortIds = parsed.cohorts.map((c) => c.cohortId);
+  await prisma.cohort.deleteMany({
+    where: { studyId: study.id, cohortId: { notIn: yamlCohortIds } },
   });
 
   console.log(`\nImported study ID: ${study.id}`);
