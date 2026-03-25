@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import { assignApiKey } from "@/lib/key-pool";
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
@@ -31,7 +32,26 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Incorrect password." }, { status: 401 });
   }
 
-  // Set session cookie
+  // Fetch API key from DB if cohort has AI access
+  if (participant.cohort.aiAccess && participant.cohort.provider) {
+    try {
+      const apiKey = await assignApiKey(participant.id, participant.cohort.provider);
+      // Set as env var so the chat widget's SDK picks it up
+      const envKey = {
+        anthropic: "ANTHROPIC_API_KEY",
+        openai: "OPENAI_API_KEY",
+        gemini: "GOOGLE_API_KEY",
+      }[participant.cohort.provider];
+      if (envKey && apiKey) {
+        process.env[envKey] = apiKey;
+        process.env.CHAT_PROVIDER = participant.cohort.provider;
+      }
+    } catch (err) {
+      // Key pool not configured — fall back to env vars if present
+      console.warn("Key pool not available, using env vars:", (err as Error).message);
+    }
+  }
+
   const response = NextResponse.json({
     id: participant.id,
     identifier: participant.identifier,
@@ -71,7 +91,7 @@ export async function POST(request: NextRequest) {
     httpOnly: true,
     sameSite: "lax",
     path: "/",
-    maxAge: 60 * 60 * 24, // 24 hours
+    maxAge: 60 * 60 * 24,
   });
 
   return response;
