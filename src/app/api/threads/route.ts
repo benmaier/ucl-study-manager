@@ -1,3 +1,3 @@
 import { createThreadsHandler } from "ucl-chat-widget/server";
-import { chatConfig } from "../chat-config";
-export const { GET } = createThreadsHandler(chatConfig);
+import { getChatConfig } from "../chat-config";
+export const GET = async () => createThreadsHandler(getChatConfig()).GET();

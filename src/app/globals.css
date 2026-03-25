@@ -147,10 +147,12 @@ button, [role="button"], a, summary, select, label[for] {
   cursor: pointer;
 }
 
-/* Ensure dark mode text color propagates to all form elements */
-.dark, .dark * {
-  color: inherit;
-}
+/* Ensure dark mode text color propagates to form elements */
 .dark {
   color: var(--llmchat-foreground);
+}
+.dark input,
+.dark textarea,
+.dark select {
+  color: inherit;
 }

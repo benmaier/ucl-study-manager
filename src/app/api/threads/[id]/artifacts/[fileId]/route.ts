@@ -1,3 +1,3 @@
 import { createArtifactsHandler } from "ucl-chat-widget/server";
-import { chatConfig } from "../../../../chat-config";
-export const { GET } = createArtifactsHandler(chatConfig);
+import { getChatConfig } from "../../../../chat-config";
+export const GET = async (req: Request, ctx: { params: Promise<{ id: string; fileId: string }> }) => createArtifactsHandler(getChatConfig()).GET(req, ctx);
