@@ -54,25 +54,10 @@ export async function POST(request: NextRequest) {
 
     dbg(`Login successful for ${identifier}, cohort=${participant.cohort.cohortId}`);
 
-    // Fetch API key from DB if cohort has AI access
-    if (participant.cohort.aiAccess && participant.cohort.provider) {
-      try {
-        dbg(`Fetching API key for provider=${participant.cohort.provider}`);
-        const apiKey = await assignApiKey(participant.id, participant.cohort.provider);
-        const envKey = {
-          anthropic: "ANTHROPIC_API_KEY",
-          openai: "OPENAI_API_KEY",
-          gemini: "GOOGLE_API_KEY",
-        }[participant.cohort.provider];
-        if (envKey && apiKey) {
-          process.env[envKey] = apiKey;
-          dbg(`Set ${envKey} for provider=${participant.cohort.provider}`);
-        }
-      } catch (err) {
-        dbg(`Key pool error: ${(err as Error).message}`);
-        console.warn("Key pool not available, using env vars:", (err as Error).message);
-      }
-    }
+    // API keys are resolved per-request in the chat route (getChatConfig)
+    // No need to set process.env here — it doesn't persist across
+    // serverless function invocations on Vercel
+    dbg(`Cohort provider: ${participant.cohort.provider || "none"}`);
 
     const response = NextResponse.json({
       id: participant.id,
