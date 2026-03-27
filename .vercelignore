@@ -1,0 +1,13 @@
+dist-electron
+electron
+data
+.next
+node_modules
+studies
+tests
+cli
+sql
+scripts
+*.exe
+*.dmg
+*.AppImage
