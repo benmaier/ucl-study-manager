@@ -48,7 +48,7 @@ export async function getChatConfig(): Promise<ChatRouteConfig> {
 
   return {
     provider,
-    conversationsDir: process.env.CONVERSATIONS_DIR || "data/conversations",
+    conversationsDir: process.env.CONVERSATIONS_DIR || "/tmp/conversations",
     traceDir: process.env.TRACE_DIR,
     debugStreams: !!process.env.DEBUG_STREAMS,
     apiBasePath: "/api",
