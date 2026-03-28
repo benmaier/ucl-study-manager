@@ -53,10 +53,11 @@ model Stage {
   config      Json   @default("{}")  // everything else: chatbot, questions, input, link, confirmation, files, etc.
   cohortId    Int    @map("cohort_id")
 
-  cohort   Cohort              @relation(fields: [cohortId], references: [id], onDelete: Cascade)
-  files    StageFile[]
-  progress ParticipantProgress[]
-  chatLogs ChatLog[]
+  cohort        Cohort              @relation(fields: [cohortId], references: [id], onDelete: Cascade)
+  files         StageFile[]
+  progress      ParticipantProgress[]
+  chatLogs      ChatLog[]
+  conversations ChatConversation[]
 
   @@unique([cohortId, stageId])
   @@map("stages")
@@ -96,10 +97,11 @@ model Participant {
   cohortId   Int      @map("cohort_id")
   createdAt  DateTime @default(now()) @map("created_at")
 
-  session  StudySession          @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  cohort   Cohort                @relation(fields: [cohortId], references: [id], onDelete: Cascade)
-  progress ParticipantProgress[]
-  chatLogs ChatLog[]
+  session       StudySession          @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  cohort        Cohort                @relation(fields: [cohortId], references: [id], onDelete: Cascade)
+  progress      ParticipantProgress[]
+  chatLogs      ChatLog[]
+  conversations ChatConversation[]
 
   @@map("participants")
 }
@@ -117,6 +119,24 @@ model ParticipantProgress {
 
   @@unique([participantId, stageId])
   @@map("participant_progress")
+}
+
+model ChatConversation {
+  id            Int      @id @default(autoincrement())
+  threadId      String   @map("thread_id")      // widget thread ID
+  participantId Int      @map("participant_id")
+  stageId       Int      @map("stage_id")
+  title         String?
+  provider      String
+  state         Json     // full SerializedConversation from SDK
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  participant Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  stage       Stage       @relation(fields: [stageId], references: [id], onDelete: Cascade)
+
+  @@unique([participantId, threadId])
+  @@map("chat_conversations")
 }
 
 model ChatLog {

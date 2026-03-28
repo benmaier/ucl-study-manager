@@ -2,52 +2,82 @@ import type { ChatRouteConfig } from "ucl-chat-widget/server";
 import { cookies } from "next/headers";
 import { assignApiKey } from "@/lib/key-pool";
 import { prisma } from "@/lib/prisma";
+import { DatabaseConversationBackend } from "@/lib/database-conversation-backend";
 
 /**
  * Build chat config per-request.
  *
- * Resolves the provider and API key from the participant's cohort
- * and the DB key pool. The apiKey is passed directly to the widget
- * config — no process.env mutation, no race conditions.
- *
- * Each participant gets their own conversationsDir so the widget's
- * singleton ConversationStore doesn't mix up providers between users.
+ * Creates a DatabaseConversationBackend scoped to the logged-in
+ * participant. Conversations are stored in PostgreSQL, not the filesystem.
+ * API keys are resolved from the DB key pool per-request.
  */
 export async function getChatConfig(): Promise<ChatRouteConfig> {
   const cookieStore = await cookies();
   const participantId = cookieStore.get("participant_id")?.value;
 
-  let provider: "anthropic" | "openai" | "gemini" = "anthropic";
-  let apiKey: string | undefined;
+  if (!participantId) {
+    // No participant — return minimal config (will fail gracefully)
+    return { provider: "anthropic", conversationsDir: "/tmp/conversations", apiBasePath: "/api" };
+  }
 
-  if (participantId) {
-    try {
-      const participant = await prisma.participant.findUnique({
-        where: { id: parseInt(participantId, 10) },
-        select: { id: true, cohort: { select: { provider: true } } },
-      });
+  const pid = parseInt(participantId, 10);
 
-      if (participant?.cohort.provider) {
-        provider = participant.cohort.provider as typeof provider;
-        const key = await assignApiKey(participant.id, provider);
-        if (key) {
-          apiKey = key;
-        }
-      }
-    } catch (err) {
-      console.warn("Key pool error:", (err as Error).message);
+  // Look up participant's cohort + stages for provider and file hashes
+  const participant = await prisma.participant.findUnique({
+    where: { id: pid },
+    select: {
+      id: true,
+      cohort: {
+        select: {
+          provider: true,
+          stages: {
+            select: {
+              id: true,
+              config: true,
+              files: { select: { sha256: true, filename: true } },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  const provider = (participant?.cohort.provider as "anthropic" | "openai" | "gemini") || "anthropic";
+
+  // Find the first chatbot-enabled stage for this cohort
+  const chatStage = participant?.cohort.stages.find(
+    (s) => (s.config as Record<string, unknown>)?.chatbot
+  );
+  const stageId = chatStage?.id || 0;
+
+  // Build file hash map for deduplication
+  const stageFileHashes = new Map<string, string>();
+  if (chatStage?.files) {
+    for (const f of chatStage.files) {
+      stageFileHashes.set(f.sha256, f.filename);
     }
   }
 
-  // Per-participant dir prevents the ConversationStore singleton from
-  // mixing providers — each participant gets their own store instance
-  const baseDir = process.env.CONVERSATIONS_DIR || "/tmp/conversations";
-  const conversationsDir = participantId ? `${baseDir}/${participantId}` : baseDir;
+  // Resolve API key from DB key pool
+  let apiKey: string | undefined;
+  try {
+    const key = await assignApiKey(pid, provider);
+    if (key) apiKey = key;
+  } catch (err) {
+    console.warn("Key pool error:", (err as Error).message);
+  }
 
-  return {
+  // Create DB-backed conversation backend
+  const backend = new DatabaseConversationBackend(
+    pid,
+    stageId,
     provider,
     apiKey,
-    conversationsDir,
+    stageFileHashes,
+  );
+
+  return {
+    backend,
     apiBasePath: "/api",
   };
 }
