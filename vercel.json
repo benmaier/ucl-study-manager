@@ -1,0 +1,3 @@
+{
+  "installCommand": "git config --global url.\"https://${GH_TOKEN}@github.com/\".insteadOf \"ssh://git@github.com/\" && git config --global url.\"https://${GH_TOKEN}@github.com/\".insteadOf \"git+ssh://git@github.com/\" && npm install"
+}

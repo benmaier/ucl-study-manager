@@ -14,7 +14,6 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "dev": "next dev",
-    "preinstall": "git config --global url.\"https://${GH_TOKEN}@github.com/\".insteadOf ssh://git@github.com/ && git config --global url.\"https://${GH_TOKEN}@github.com/\".insteadOf git+ssh://git@github.com/",
     "build": "prisma generate && next build",
     "electron:dev": "electron .",
     "build:electron": "bash scripts/build.sh"
