@@ -241,9 +241,21 @@ export class DatabaseConversationBackend implements ConversationBackend {
 
     if (!conv) return null;
 
+    // If no title, compute the number based on creation order
+    let title = conv.title;
+    if (!title) {
+      const allConvs = await prisma.chatConversation.findMany({
+        where: { participantId: this.participantId },
+        orderBy: { createdAt: "asc" },
+        select: { threadId: true },
+      });
+      const index = allConvs.findIndex((c) => c.threadId === threadId);
+      title = `Chat ${String(index + 1).padStart(2, "0")}`;
+    }
+
     return {
       remoteId: conv.threadId,
-      title: conv.title || "Chat",
+      title,
       status: "regular",
     };
   }
