@@ -213,25 +213,25 @@ export class DatabaseConversationBackend implements ConversationBackend {
   async listThreads(): Promise<{ threads: ThreadMeta[] }> {
     const conversations = await prisma.chatConversation.findMany({
       where: { participantId: this.participantId },
-      orderBy: { createdAt: "desc" },
+      orderBy: { createdAt: "asc" },
     });
 
-    let chatNum = 0;
-    const threads: ThreadMeta[] = conversations
-      .filter((c) => {
-        const state = c.state as Record<string, unknown> | null;
-        if (!state) return false;
-        const turns = state.turns as unknown[] | undefined;
-        return turns && turns.length > 0;
-      })
-      .map((c) => {
-        chatNum++;
-        return {
-          remoteId: c.threadId,
-          title: c.title || `Chat ${String(chatNum).padStart(2, "0")}`,
-          status: "regular" as const,
-        };
-      });
+    // Filter to conversations with actual turns, number by creation order
+    const withTurns = conversations.filter((c) => {
+      const state = c.state as Record<string, unknown> | null;
+      if (!state) return false;
+      const turns = state.turns as unknown[] | undefined;
+      return turns && turns.length > 0;
+    });
+
+    const threads: ThreadMeta[] = withTurns.map((c, i) => ({
+      remoteId: c.threadId,
+      title: c.title || `Chat ${String(i + 1).padStart(2, "0")}`,
+      status: "regular" as const,
+    }));
+
+    // Reverse so newest appears first in sidebar
+    threads.reverse();
 
     return { threads };
   }
