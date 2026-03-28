@@ -9,6 +9,9 @@ import { prisma } from "@/lib/prisma";
  * Resolves the provider and API key from the participant's cohort
  * and the DB key pool. The apiKey is passed directly to the widget
  * config — no process.env mutation, no race conditions.
+ *
+ * Each participant gets their own conversationsDir so the widget's
+ * singleton ConversationStore doesn't mix up providers between users.
  */
 export async function getChatConfig(): Promise<ChatRouteConfig> {
   const cookieStore = await cookies();
@@ -36,10 +39,15 @@ export async function getChatConfig(): Promise<ChatRouteConfig> {
     }
   }
 
+  // Per-participant dir prevents the ConversationStore singleton from
+  // mixing providers — each participant gets their own store instance
+  const baseDir = process.env.CONVERSATIONS_DIR || "/tmp/conversations";
+  const conversationsDir = participantId ? `${baseDir}/${participantId}` : baseDir;
+
   return {
     provider,
     apiKey,
-    conversationsDir: process.env.CONVERSATIONS_DIR || "/tmp/conversations",
+    conversationsDir,
     apiBasePath: "/api",
   };
 }
