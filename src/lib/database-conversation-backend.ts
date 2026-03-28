@@ -216,15 +216,8 @@ export class DatabaseConversationBackend implements ConversationBackend {
       orderBy: { createdAt: "asc" },
     });
 
-    // Filter to conversations with actual turns, number by creation order
-    const withTurns = conversations.filter((c) => {
-      const state = c.state as Record<string, unknown> | null;
-      if (!state) return false;
-      const turns = state.turns as unknown[] | undefined;
-      return turns && turns.length > 0;
-    });
-
-    const threads: ThreadMeta[] = withTurns.map((c, i) => ({
+    // Number by creation order, include all threads (even empty new ones)
+    const threads: ThreadMeta[] = conversations.map((c, i) => ({
       remoteId: c.threadId,
       title: c.title || `Chat ${String(i + 1).padStart(2, "0")}`,
       status: "regular" as const,
