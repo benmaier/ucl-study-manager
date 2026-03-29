@@ -12,6 +12,7 @@ export default function PreviewPage() {
   const [loading, setLoading] = useState(false);
   const [selectedCohort, setSelectedCohort] = useState<ParsedCohort | null>(null);
   const [currentStageIndex, setCurrentStageIndex] = useState(0);
+  const [confirmed, setConfirmed] = useState(false);
 
   async function loadStudy() {
     if (!studyDir.trim()) return;
@@ -88,7 +89,7 @@ export default function PreviewPage() {
               return (
                 <button
                   key={s.stageId}
-                  onClick={() => setCurrentStageIndex(i)}
+                  onClick={() => { setCurrentStageIndex(i); setConfirmed(false); }}
                   className="flex items-center gap-3 w-full text-left hover:bg-white/50 rounded px-1 py-0.5 transition-colors"
                 >
                   <span
@@ -110,14 +111,14 @@ export default function PreviewPage() {
             <p className="text-xs text-gray-500 uppercase tracking-wide">Admin</p>
             <div className="flex gap-2">
               <button
-                onClick={() => setCurrentStageIndex(Math.max(0, currentStageIndex - 1))}
+                onClick={() => { setCurrentStageIndex(Math.max(0, currentStageIndex - 1)); setConfirmed(false); }}
                 disabled={currentStageIndex === 0}
                 className="flex-1 rounded-[5px] border border-input-border px-3 py-2 text-sm text-heading disabled:opacity-30"
               >
                 Previous
               </button>
               <button
-                onClick={() => setCurrentStageIndex(Math.min(stages.length - 1, currentStageIndex + 1))}
+                onClick={() => { setCurrentStageIndex(Math.min(stages.length - 1, currentStageIndex + 1)); setConfirmed(false); }}
                 disabled={currentStageIndex === stages.length - 1}
                 className="flex-1 rounded-[5px] border border-input-border px-3 py-2 text-sm text-heading disabled:opacity-30"
               >
@@ -216,14 +217,26 @@ export default function PreviewPage() {
             </div>
           )}
 
-          {/* Confirmation + submit (preview only — always visible) */}
+          {/* Confirmation + submit */}
           {stage.confirmation && (
             <div className="mb-8 space-y-3">
-              <label className="flex items-start gap-2 text-sm text-body">
-                <input type="checkbox" className="mt-0.5" />
+              <label className="flex items-start gap-2 text-sm text-body cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
+                  checked={confirmed}
+                  onChange={(e) => setConfirmed(e.target.checked)}
+                />
                 {stage.confirmation}
               </label>
-              <button className="rounded-[5px] bg-btn-inactive-bg px-6 py-3 text-sm text-btn-inactive-text">
+              <button
+                disabled={!confirmed}
+                className={`rounded-[5px] px-6 py-3 text-sm ${
+                  confirmed
+                    ? "bg-btn-active-bg text-btn-active-text"
+                    : "bg-btn-inactive-bg text-btn-inactive-text cursor-not-allowed"
+                }`}
+              >
                 Submit your answer and proceed
               </button>
             </div>
