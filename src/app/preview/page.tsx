@@ -231,13 +231,21 @@ export default function PreviewPage() {
               </label>
               <button
                 disabled={!confirmed}
+                onClick={() => {
+                  if (currentStageIndex < stages.length - 1) {
+                    setCurrentStageIndex(currentStageIndex + 1);
+                    setConfirmed(false);
+                  }
+                }}
                 className={`rounded-[5px] px-6 py-3 text-sm ${
                   confirmed
                     ? "bg-btn-active-bg text-btn-active-text"
                     : "bg-btn-inactive-bg text-btn-inactive-text cursor-not-allowed"
                 }`}
               >
-                Submit your answer and proceed
+                {currentStageIndex < stages.length - 1
+                  ? "Submit your answer and proceed"
+                  : "Complete study"}
               </button>
             </div>
           )}
