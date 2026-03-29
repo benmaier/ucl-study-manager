@@ -144,12 +144,30 @@ export default function StudyView({
     } catch {}
   };
 
+  const resetUser = async () => {
+    if (!confirm("This will delete all your progress, chat history, and responses. Are you sure?")) return;
+    try {
+      const res = await fetch("/api/participant/reset", { method: "POST" });
+      if (res.ok) {
+        window.location.reload();
+      }
+    } catch {}
+  };
+
   if (completed) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-white">
         <div className="text-center space-y-4">
           <h1 className="text-4xl font-normal text-heading">Thank you!</h1>
           <p className="text-body">You have completed the study.</p>
+          {isTestUser && (
+            <button
+              onClick={resetUser}
+              className="mt-4 rounded-[5px] border border-red-300 px-6 py-2 text-sm text-red-600 hover:bg-red-50"
+            >
+              Reset this user
+            </button>
+          )}
         </div>
       </div>
     );
