@@ -43,16 +43,27 @@ export default function StudyView({
   const [remaining, setRemaining] = useState<number | null>(null);
   const [confirmed, setConfirmed] = useState(false);
 
-  // Determine current stage: first stage without completedAt, or first without any progress
+  // Re-fetch progress on mount (handles Cmd+Shift+T / tab restore)
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => {
+        if (data?.progress) {
+          setProgress(data.progress);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // Determine current stage: first stage without completedAt
   const currentStageIndex = (() => {
     for (let i = 0; i < stages.length; i++) {
       const prog = progress.find((p) => p.stageId === stages[i].id);
       if (!prog || !prog.completedAt) return i;
     }
-    return stages.length; // all completed
+    return stages.length;
   })();
 
-  // If all stages completed
   useEffect(() => {
     if (currentStageIndex >= stages.length) setCompleted(true);
   }, [currentStageIndex, stages.length]);
@@ -78,14 +89,13 @@ export default function StudyView({
     } catch {}
   }, []);
 
-  // Start current stage on mount / stage change
   useEffect(() => {
     if (currentStage && !completed) {
       startStage(currentStage.id);
     }
   }, [currentStage?.id, completed, startStage]);
 
-  // Timer: count down from startedAt + duration
+  // Timer
   useEffect(() => {
     if (!currentStage || completed) return;
 
@@ -106,17 +116,14 @@ export default function StudyView({
     return () => clearInterval(interval);
   }, [currentStage?.id, progress, completed]);
 
-  // Reset confirmed on stage change
   useEffect(() => {
     setConfirmed(false);
   }, [currentStageIndex]);
 
   const timerExpired = remaining !== null && remaining <= 0;
 
-  // Complete current stage and advance
   const completeStage = async () => {
     if (!currentStage) return;
-
     try {
       const res = await fetch("/api/participant/progress", {
         method: "POST",
@@ -236,23 +243,24 @@ export default function StudyView({
           </div>
         )}
 
-        {/* Submit section — only visible after timer expires */}
-        {timerExpired && currentStage?.config?.confirmation && (
+        {/* Submit section — always visible, active only after timer */}
+        {currentStage?.config?.confirmation && (
           <div className="mt-8 space-y-3">
-            <label className="flex items-start gap-2 text-sm text-body cursor-pointer">
+            <label className={`flex items-start gap-2 text-sm cursor-pointer ${timerExpired ? "text-body" : "text-gray-400"}`}>
               <input
                 type="checkbox"
                 className="mt-0.5"
                 checked={confirmed}
                 onChange={(e) => setConfirmed(e.target.checked)}
+                disabled={!timerExpired}
               />
               {currentStage.config.confirmation as string}
             </label>
             <button
-              disabled={!confirmed}
+              disabled={!timerExpired || !confirmed}
               onClick={completeStage}
               className={`rounded-[5px] px-6 py-3 text-sm ${
-                confirmed
+                timerExpired && confirmed
                   ? "bg-btn-active-bg text-btn-active-text"
                   : "bg-btn-inactive-bg text-btn-inactive-text cursor-not-allowed"
               }`}
@@ -264,12 +272,17 @@ export default function StudyView({
           </div>
         )}
 
-        {/* No confirmation — just a next button after timer */}
-        {timerExpired && !currentStage?.config?.confirmation && (
+        {/* No confirmation — just a proceed button */}
+        {!currentStage?.config?.confirmation && (
           <div className="mt-8">
             <button
+              disabled={!timerExpired}
               onClick={completeStage}
-              className="rounded-[5px] bg-btn-active-bg px-6 py-3 text-sm font-medium text-btn-active-text"
+              className={`rounded-[5px] px-6 py-3 text-sm ${
+                timerExpired
+                  ? "bg-btn-active-bg text-btn-active-text font-medium"
+                  : "bg-btn-inactive-bg text-btn-inactive-text cursor-not-allowed"
+              }`}
             >
               {currentStageIndex < stages.length - 1
                 ? "Proceed to next stage"
