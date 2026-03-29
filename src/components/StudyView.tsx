@@ -164,7 +164,9 @@ export default function StudyView({
     autoSave(value);
   };
 
-  const timerExpired = remaining !== null && remaining <= 0;
+  // Timer must be loaded AND expired. Before timer loads, everything stays disabled.
+  const timerLoaded = remaining !== null;
+  const timerExpired = timerLoaded && remaining <= 0;
 
   const completeStage = async () => {
     if (!currentStage) return;

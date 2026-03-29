@@ -7,22 +7,19 @@ import { DatabaseConversationBackend } from "@/lib/database-conversation-backend
 /**
  * Build chat config per-request.
  *
- * Creates a DatabaseConversationBackend scoped to the logged-in
- * participant. Conversations are stored in PostgreSQL, not the filesystem.
- * API keys are resolved from the DB key pool per-request.
+ * Determines the participant's current stage from DB progress
+ * (started but not completed). Conversations are scoped to that stage.
  */
 export async function getChatConfig(): Promise<ChatRouteConfig> {
   const cookieStore = await cookies();
   const participantId = cookieStore.get("participant_id")?.value;
 
   if (!participantId) {
-    // No participant — return minimal config (will fail gracefully)
     return { provider: "anthropic", conversationsDir: "/tmp/conversations", apiBasePath: "/api" };
   }
 
   const pid = parseInt(participantId, 10);
 
-  // Look up participant's cohort + stages for provider and file hashes
   const participant = await prisma.participant.findUnique({
     where: { id: pid },
     select: {
@@ -33,32 +30,38 @@ export async function getChatConfig(): Promise<ChatRouteConfig> {
           stages: {
             select: {
               id: true,
+              order: true,
               config: true,
               files: { select: { sha256: true, filename: true } },
             },
+            orderBy: { order: "asc" },
           },
         },
+      },
+      progress: {
+        select: { stageId: true, completedAt: true },
       },
     },
   });
 
   const provider = (participant?.cohort.provider as "anthropic" | "openai" | "gemini") || "anthropic";
 
-  // Find the first chatbot-enabled stage for this cohort
-  const chatStage = participant?.cohort.stages.find(
-    (s) => (s.config as Record<string, unknown>)?.chatbot
-  );
-  const stageId = chatStage?.id || 0;
+  // Current stage: started but not completed, with chatbot enabled
+  const currentChatStage = participant?.cohort.stages.find((s) => {
+    const prog = participant.progress.find((p) => p.stageId === s.id);
+    const hasChatbot = (s.config as Record<string, unknown>)?.chatbot;
+    return hasChatbot && prog && !prog.completedAt;
+  });
 
-  // Build file hash map for deduplication
+  const stageId = currentChatStage?.id || 0;
+
   const stageFileHashes = new Map<string, string>();
-  if (chatStage?.files) {
-    for (const f of chatStage.files) {
+  if (currentChatStage?.files) {
+    for (const f of currentChatStage.files) {
       stageFileHashes.set(f.sha256, f.filename);
     }
   }
 
-  // Resolve API key from DB key pool
   let apiKey: string | undefined;
   try {
     const key = await assignApiKey(pid, provider);
@@ -67,7 +70,6 @@ export async function getChatConfig(): Promise<ChatRouteConfig> {
     console.warn("Key pool error:", (err as Error).message);
   }
 
-  // Create DB-backed conversation backend
   const backend = new DatabaseConversationBackend(
     pid,
     stageId,

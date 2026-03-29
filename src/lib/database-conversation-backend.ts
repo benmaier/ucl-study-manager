@@ -212,7 +212,7 @@ export class DatabaseConversationBackend implements ConversationBackend {
 
   async listThreads(): Promise<{ threads: ThreadMeta[] }> {
     const conversations = await prisma.chatConversation.findMany({
-      where: { participantId: this.participantId },
+      where: { participantId: this.participantId, stageId: this.stageId },
       orderBy: { createdAt: "asc" },
     });
 
@@ -241,11 +241,11 @@ export class DatabaseConversationBackend implements ConversationBackend {
 
     if (!conv) return null;
 
-    // If no title, compute the number based on creation order
+    // If no title, compute the number based on creation order within this stage
     let title = conv.title;
     if (!title) {
       const allConvs = await prisma.chatConversation.findMany({
-        where: { participantId: this.participantId },
+        where: { participantId: this.participantId, stageId: this.stageId },
         orderBy: { createdAt: "asc" },
         select: { threadId: true },
       });
