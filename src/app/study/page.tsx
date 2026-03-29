@@ -15,39 +15,35 @@ export default async function StudyPage() {
   return (
     <div className="flex min-h-screen">
       {/* Schedule sidebar */}
-      <aside className="w-[362px] bg-sidebar-bg border-r border-gray-200 p-8 shrink-0">
-        <h2 className="text-2xl font-normal text-heading mb-6">Schedule</h2>
-        <div className="space-y-2">
+      <aside className="w-[260px] bg-study-sidebar-bg border-r border-gray-200 p-6 shrink-0">
+        <h2 className="text-lg font-normal text-heading mb-4">Schedule</h2>
+        <div className="space-y-1.5">
           {stages.map((stage) => {
             const prog = progress.find((p) => p.stageId === stage.id);
             const isCompleted = !!prog?.completedAt;
             const isStarted = !!prog && !prog.completedAt;
             const minutes = Math.floor(stage.duration / 60);
-            const seconds = stage.duration % 60;
             const durationStr = `${minutes} min`;
 
             return (
-              <div key={stage.id} className="flex items-center gap-3">
-                {/* Status indicator */}
+              <div key={stage.id} className="flex items-center gap-2">
                 <span
-                  className={`w-3 h-3 rounded-full shrink-0 ${
+                  className={`w-2.5 h-2.5 rounded-full shrink-0 ${
                     isCompleted
-                      ? "bg-muted"
+                      ? "bg-study-muted"
                       : isStarted
                         ? "bg-btn-active-bg"
                         : "border-2 border-gray-400"
                   }`}
                 />
-                {/* Stage name */}
                 <span
-                  className={`text-base flex-1 ${
-                    isCompleted ? "text-muted line-through" : "text-black"
+                  className={`text-sm flex-1 ${
+                    isCompleted ? "text-study-muted line-through" : "text-black"
                   }`}
                 >
                   {stage.title}
                 </span>
-                {/* Duration */}
-                <span className="text-base text-muted tabular-nums">
+                <span className="text-sm text-gray-500 tabular-nums">
                   {durationStr}
                 </span>
               </div>
