@@ -170,11 +170,17 @@ export default function PreviewPage() {
             </div>
           )}
 
-          {/* Chatbot indicator */}
+          {/* Chatbot */}
           {stage.chatbot && selectedCohort.aiAccess && (
             <div className="mb-8">
-              <h2 className="text-[22px] font-normal text-heading mb-2">AI Chatbot</h2>
-              <p className="text-sm text-body">Chat panel will appear here for AI-access cohorts.</p>
+              <h2 className="text-[22px] font-normal text-heading mb-3">AI Chatbot</h2>
+              <p className="text-sm text-body mb-3">Use the AI assistant to help with this task.</p>
+              <button
+                onClick={() => window.open("/chat", "_blank")}
+                className="rounded-[5px] bg-btn-active-bg px-6 py-3 text-sm font-medium text-btn-active-text"
+              >
+                Open AI Assistant
+              </button>
             </div>
           )}
 
