@@ -22,6 +22,7 @@ export default async function StudyPage() {
         id: s.id,
         title: s.title,
         duration: s.duration,
+        contentText: s.contentText,
         config: s.config as Record<string, unknown>,
       }))}
       progress={progress.map((p) => ({

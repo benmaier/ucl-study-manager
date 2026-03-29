@@ -12,6 +12,7 @@ export async function GET() {
       stageId: p.stageId,
       startedAt: p.startedAt.toISOString(),
       completedAt: p.completedAt?.toISOString() ?? null,
+      responses: p.responses,
     })),
   });
 }

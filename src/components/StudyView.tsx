@@ -1,11 +1,14 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 interface StageData {
   id: number;
   title: string;
   duration: number; // seconds
+  contentText?: string | null;
   config: Record<string, unknown>;
 }
 
@@ -13,6 +16,7 @@ interface ProgressData {
   stageId: number;
   startedAt: string;
   completedAt: string | null;
+  responses?: Record<string, unknown> | null;
 }
 
 interface Props {
@@ -42,6 +46,9 @@ export default function StudyView({
   const [completed, setCompleted] = useState(false);
   const [remaining, setRemaining] = useState<number | null>(null);
   const [confirmed, setConfirmed] = useState(false);
+  const [inputValue, setInputValue] = useState("");
+  const [saveStatus, setSaveStatus] = useState<"" | "saving" | "saved">("");
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Re-fetch progress on mount (handles Cmd+Shift+T / tab restore)
   useEffect(() => {
@@ -116,19 +123,59 @@ export default function StudyView({
     return () => clearInterval(interval);
   }, [currentStage?.id, progress, completed]);
 
+  // Reset confirmed + load saved input on stage change
   useEffect(() => {
     setConfirmed(false);
+    setSaveStatus("");
+    // Load previously saved input for this stage
+    if (currentStage) {
+      const prog = progress.find((p) => p.stageId === currentStage.id);
+      const saved = prog?.responses as Record<string, unknown> | null;
+      setInputValue((saved?.inputAnswer as string) || "");
+    }
   }, [currentStageIndex]);
+
+  // Debounced auto-save (2 seconds after typing stops)
+  const autoSave = useCallback((value: string) => {
+    if (!currentStage) return;
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(async () => {
+      setSaveStatus("saving");
+      try {
+        await fetch("/api/participant/progress", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "save",
+            stageId: currentStage.id,
+            responses: { inputAnswer: value },
+          }),
+        });
+        setSaveStatus("saved");
+        setTimeout(() => setSaveStatus(""), 2000);
+      } catch {
+        setSaveStatus("");
+      }
+    }, 2000);
+  }, [currentStage?.id]);
+
+  const handleInputChange = (value: string) => {
+    setInputValue(value);
+    autoSave(value);
+  };
 
   const timerExpired = remaining !== null && remaining <= 0;
 
   const completeStage = async () => {
     if (!currentStage) return;
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     try {
+      const responses: Record<string, unknown> = {};
+      if (inputValue) responses.inputAnswer = inputValue;
       const res = await fetch("/api/participant/progress", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "complete", stageId: currentStage.id }),
+        body: JSON.stringify({ action: "complete", stageId: currentStage.id, responses }),
       });
       if (res.ok) {
         const data = await res.json();
@@ -243,9 +290,28 @@ export default function StudyView({
           {currentStage?.title}
         </h1>
 
-        <p className="text-body mb-6">
-          Stage content will be rendered here.
-        </p>
+        {/* Markdown content */}
+        {stages[currentStageIndex]?.contentText && (
+          <div className="max-w-none mb-8 text-sm text-body leading-relaxed [&_h1]:hidden [&_h2]:text-[22px] [&_h2]:font-normal [&_h2]:text-heading [&_h2]:mt-8 [&_h2]:mb-3 [&_h3]:text-[15px] [&_h3]:font-semibold [&_h3]:text-heading [&_h3]:mt-6 [&_h3]:mb-2 [&_p]:mb-3 [&_a]:text-blue-600 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:mb-3 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:mb-3 [&_li]:mb-1">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {stages[currentStageIndex].contentText!}
+            </ReactMarkdown>
+          </div>
+        )}
+
+        {/* External link */}
+        {currentStage?.config?.link && (
+          <div className="mb-8">
+            <a
+              href={(currentStage.config.link as { url: string }).url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 underline text-sm"
+            >
+              {(currentStage.config.link as { label: string }).label}
+            </a>
+          </div>
+        )}
 
         {/* Chatbot button */}
         {aiAccess && currentStage?.config?.chatbot && (
@@ -258,6 +324,43 @@ export default function StudyView({
             >
               Open AI Assistant
             </button>
+          </div>
+        )}
+
+        {/* Questions */}
+        {(currentStage?.config?.questions as string[] | undefined)?.length ? (
+          <div className="mb-8">
+            <h2 className="text-[22px] font-normal text-heading mb-3">Questions</h2>
+            <ol className="list-decimal list-inside space-y-1 text-sm text-body">
+              {(currentStage.config.questions as string[]).map((q, i) => (
+                <li key={i}>{q}</li>
+              ))}
+            </ol>
+          </div>
+        ) : null}
+
+        {/* Text input with auto-save */}
+        {currentStage?.config?.input && (
+          <div className="mb-8">
+            {(currentStage.config.input as { prompt?: string }).prompt && (
+              <p className="text-[15px] font-semibold text-heading mb-2">
+                {(currentStage.config.input as { prompt: string }).prompt}
+              </p>
+            )}
+            <textarea
+              value={inputValue}
+              onChange={(e) => handleInputChange(e.target.value)}
+              placeholder={(currentStage.config.input as { label: string }).label}
+              className="w-full max-w-[555px] h-[162px] rounded-[5px] border border-input-border px-3 py-2 text-sm text-body outline-none resize-none focus:ring-2 focus:ring-input-border"
+            />
+            <div className="h-5 mt-1">
+              {saveStatus === "saving" && (
+                <p className="text-xs text-gray-400">Saving...</p>
+              )}
+              {saveStatus === "saved" && (
+                <p className="text-xs text-gray-400">Draft saved</p>
+              )}
+            </div>
           </div>
         )}
 
