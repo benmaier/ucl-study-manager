@@ -5,10 +5,11 @@ import bcrypt from "bcryptjs";
 const sessionIdArg = process.argv[2];
 const countIdx = process.argv.indexOf("--count");
 const groupIdx = process.argv.indexOf("--cohort");
+const isTestUser = process.argv.includes("--test");
 
 if (!sessionIdArg || countIdx === -1 || groupIdx === -1) {
   console.error(
-    "Usage: npx tsx cli/generate-participants.ts <session-id> --count <N> --cohort <cohort-id>"
+    "Usage: npx tsx cli/generate-participants.ts <session-id> --count <N> --cohort <cohort-id> [--test]"
   );
   process.exit(1);
 }
@@ -72,6 +73,7 @@ try {
         identifier: cred.username,
         dbUser,
         dbPassword: passwordHash,
+        isTestUser,
         sessionId,
         cohortId: cohort.id,
       },

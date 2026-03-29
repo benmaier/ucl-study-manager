@@ -94,6 +94,15 @@ export async function POST(request: NextRequest) {
       })),
     });
 
+    if (participant.isTestUser) {
+      response.cookies.set("is_test_user", "true", {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        maxAge: 60 * 60 * 24,
+      });
+    }
+
     response.cookies.set("participant_id", String(participant.id), {
       httpOnly: true,
       sameSite: "lax",

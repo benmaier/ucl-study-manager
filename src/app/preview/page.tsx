@@ -241,6 +241,8 @@ export default function PreviewPage() {
                   if (currentStageIndex < stages.length - 1) {
                     setCurrentStageIndex(currentStageIndex + 1);
                     setConfirmed(false);
+                  } else {
+                    alert("Study complete! In the real app, this would record completion and show a thank-you screen.");
                   }
                 }}
                 className={`rounded-[5px] px-6 py-3 text-sm ${

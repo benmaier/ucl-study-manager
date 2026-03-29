@@ -92,6 +92,7 @@ model Participant {
   identifier String   @unique
   dbUser     String?  @unique @map("db_user")
   dbPassword String?  @map("db_password")
+  isTestUser Boolean  @default(false) @map("is_test_user")
   name       String?
   sessionId  Int      @map("session_id")
   cohortId   Int      @map("cohort_id")
