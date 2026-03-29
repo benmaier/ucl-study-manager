@@ -26,6 +26,7 @@ export default async function StudyPage() {
       }))}
       progress={progress.map((p) => ({
         stageId: p.stageId,
+        startedAt: p.startedAt.toISOString(),
         completedAt: p.completedAt?.toISOString() ?? null,
       }))}
       studyTitle={participant.session.study.title}
