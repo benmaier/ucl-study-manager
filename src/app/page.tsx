@@ -90,7 +90,7 @@ export default function LoginPage() {
             {loading ? "Signing in..." : "Sign in"}
           </button>
           {loading && (
-            <div className="h-5 w-5 animate-spin rounded-full border-2 border-muted border-t-heading" />
+            <div className="h-5 w-5 animate-spin rounded-full border-2 border-gray-300 border-t-heading" />
           )}
         </div>
       </form>

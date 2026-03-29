@@ -49,7 +49,7 @@ export default function PreviewPage() {
                 className="w-full rounded-[5px] border border-input-border px-4 py-3 text-left hover:bg-sidebar-bg transition-colors"
               >
                 <span className="font-medium text-heading">{cohort.label}</span>
-                <span className="text-sm text-muted ml-2">
+                <span className="text-sm text-gray-500 ml-2">
                   ({cohort.stages.length} stages{cohort.aiAccess ? ", AI access" : ""})
                 </span>
               </button>
@@ -57,7 +57,7 @@ export default function PreviewPage() {
           </div>
           <button
             onClick={() => { setStudy(null); setStudyDir(""); }}
-            className="w-full text-sm text-muted hover:text-heading"
+            className="w-full text-sm text-gray-500 hover:text-heading"
           >
             Load a different study
           </button>
@@ -76,7 +76,7 @@ export default function PreviewPage() {
         {/* Schedule sidebar */}
         <aside className="w-[280px] bg-sidebar-bg border-r border-gray-200 p-6 shrink-0 flex flex-col">
           <h2 className="text-2xl font-normal text-heading mb-1">Schedule</h2>
-          <p className="text-xs text-muted mb-4">
+          <p className="text-xs text-gray-500 mb-4">
             Preview: {selectedCohort.label}
           </p>
           <div className="space-y-2 flex-1">
@@ -93,13 +93,13 @@ export default function PreviewPage() {
                 >
                   <span
                     className={`w-3 h-3 rounded-full shrink-0 ${
-                      isPast ? "bg-muted" : isCurrent ? "bg-btn-active-bg" : "border-2 border-gray-400"
+                      isPast ? "bg-gray-400" : isCurrent ? "bg-btn-active-bg" : "border-2 border-gray-400"
                     }`}
                   />
-                  <span className={`text-sm flex-1 ${isPast ? "text-muted line-through" : "text-black"}`}>
+                  <span className={`text-sm flex-1 ${isPast ? "text-gray-500 line-through" : "text-black"}`}>
                     {s.title}
                   </span>
-                  <span className="text-sm text-muted tabular-nums">{minutes} min</span>
+                  <span className="text-sm text-gray-500 tabular-nums">{minutes} min</span>
                 </button>
               );
             })}
@@ -107,7 +107,7 @@ export default function PreviewPage() {
 
           {/* Admin controls */}
           <div className="border-t border-gray-200 pt-4 mt-4 space-y-2">
-            <p className="text-xs text-muted uppercase tracking-wide">Admin</p>
+            <p className="text-xs text-gray-500 uppercase tracking-wide">Admin</p>
             <div className="flex gap-2">
               <button
                 onClick={() => setCurrentStageIndex(Math.max(0, currentStageIndex - 1))}
@@ -126,7 +126,7 @@ export default function PreviewPage() {
             </div>
             <button
               onClick={() => setSelectedCohort(null)}
-              className="w-full text-xs text-muted hover:text-heading"
+              className="w-full text-xs text-gray-500 hover:text-heading"
             >
               Switch cohort
             </button>
