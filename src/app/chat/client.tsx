@@ -33,7 +33,17 @@ export default function ChatPageClient() {
     // Check immediately on mount
     check();
     const interval = setInterval(check, 5000);
-    return () => clearInterval(interval);
+
+    // Also check when tab becomes visible again
+    const onVisible = () => {
+      if (document.visibilityState === "visible") check();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, []);
 
   if (!available) {
