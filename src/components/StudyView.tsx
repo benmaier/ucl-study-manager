@@ -1,8 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 
 interface StageData {
   id: number;
@@ -292,17 +290,10 @@ export default function StudyView({
           {currentStage?.title}
         </h1>
 
-        {/* Markdown content */}
-        {stages[currentStageIndex]?.contentText && (
-          <div className="max-w-none mb-8 text-sm text-body leading-relaxed [&_h1]:hidden [&_h2]:text-[22px] [&_h2]:font-normal [&_h2]:text-heading [&_h2]:mt-8 [&_h2]:mb-3 [&_h3]:text-[15px] [&_h3]:font-semibold [&_h3]:text-heading [&_h3]:mt-6 [&_h3]:mb-2 [&_p]:mb-3 [&_a]:text-blue-600 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:mb-3 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:mb-3 [&_li]:mb-1">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-              {stages[currentStageIndex].contentText!}
-            </ReactMarkdown>
-          </div>
-        )}
+        {/* Stage content placeholder */}
 
         {/* External link */}
-        {currentStage?.config?.link && (
+        {Boolean(currentStage?.config?.link) && (
           <div className="mb-8">
             <a
               href={(currentStage.config.link as { url: string }).url}
@@ -316,7 +307,7 @@ export default function StudyView({
         )}
 
         {/* Chatbot button */}
-        {aiAccess && currentStage?.config?.chatbot && (
+        {aiAccess && Boolean(currentStage?.config?.chatbot) && (
           <div className="mb-8">
             <h2 className="text-[22px] font-normal text-heading mb-3">AI Chatbot</h2>
             <p className="text-sm text-body mb-3">Use the AI assistant to help with this task.</p>
@@ -342,7 +333,7 @@ export default function StudyView({
         ) : null}
 
         {/* Text input with auto-save */}
-        {currentStage?.config?.input && (
+        {Boolean(currentStage?.config?.input) && (
           <div className="mb-8">
             {(currentStage.config.input as { prompt?: string }).prompt && (
               <p className="text-[15px] font-semibold text-heading mb-2">
@@ -367,7 +358,7 @@ export default function StudyView({
         )}
 
         {/* Submit section — always visible, active only after timer */}
-        {currentStage?.config?.confirmation && (
+        {Boolean(currentStage?.config?.confirmation) && (
           <div className="mt-8 space-y-3">
             <label className={`flex items-start gap-2 text-sm cursor-pointer ${timerExpired ? "text-body" : "text-gray-400"}`}>
               <input
@@ -396,7 +387,7 @@ export default function StudyView({
         )}
 
         {/* No confirmation — just a proceed button */}
-        {!currentStage?.config?.confirmation && (
+        {!Boolean(currentStage?.config?.confirmation) && (
           <div className="mt-8">
             <button
               disabled={!timerExpired}
