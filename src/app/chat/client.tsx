@@ -1,23 +1,37 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ChatWidget } from "ucl-chat-widget/client";
 
 export default function ChatPageClient() {
   const [available, setAvailable] = useState(true);
+  const stageIdRef = useRef<number | null>(null);
 
-  // Poll every 5 seconds to check if still on a chatbot stage
+  // Poll every 5 seconds to check stage status
   useEffect(() => {
     const check = async () => {
       try {
         const res = await fetch("/api/chat/status");
-        if (res.ok) {
-          const data = await res.json();
-          if (!data.available) setAvailable(false);
+        if (!res.ok) return;
+        const data = await res.json();
+
+        if (!data.available) {
+          setAvailable(false);
+          return;
+        }
+
+        // If stage changed (moved to a different chatbot stage), reload
+        if (stageIdRef.current === null) {
+          stageIdRef.current = data.stageId;
+        } else if (data.stageId !== stageIdRef.current) {
+          // Stage changed — reload to get fresh conversations for the new stage
+          window.location.reload();
         }
       } catch {}
     };
 
+    // Check immediately on mount
+    check();
     const interval = setInterval(check, 5000);
     return () => clearInterval(interval);
   }, []);

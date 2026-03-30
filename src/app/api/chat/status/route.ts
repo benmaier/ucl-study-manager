@@ -4,13 +4,13 @@ import { prisma } from "@/lib/prisma";
 
 /**
  * GET /api/chat/status
- * Returns whether the participant is currently on a chatbot-enabled stage.
+ * Returns whether the participant is on a chatbot stage, and which one.
  */
 export async function GET() {
   const cookieStore = await cookies();
   const pid = cookieStore.get("participant_id")?.value;
   if (!pid) {
-    return NextResponse.json({ available: false });
+    return NextResponse.json({ available: false, stageId: null });
   }
 
   const participant = await prisma.participant.findUnique({
@@ -25,11 +25,14 @@ export async function GET() {
     },
   });
 
-  const available = participant?.cohort.stages.some((s) => {
+  const currentChatStage = participant?.cohort.stages.find((s) => {
     const prog = participant.progress.find((p) => p.stageId === s.id);
     const hasChatbot = (s.config as Record<string, unknown>)?.chatbot;
     return hasChatbot && prog && !prog.completedAt;
-  }) ?? false;
+  });
 
-  return NextResponse.json({ available });
+  return NextResponse.json({
+    available: !!currentChatStage,
+    stageId: currentChatStage?.id ?? null,
+  });
 }
