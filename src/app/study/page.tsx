@@ -15,6 +15,19 @@ export default async function StudyPage() {
 
   const stages = participant.cohort.stages;
   const progress = participant.progress;
+  const uid = participant.identifier;
+
+  // Replace <USER_ID> in all string values (contentText, config link URLs, etc.)
+  const replaceUserIdDeep = (obj: unknown): unknown => {
+    if (typeof obj === "string") return obj.replaceAll("<USER_ID>", uid);
+    if (Array.isArray(obj)) return obj.map(replaceUserIdDeep);
+    if (obj && typeof obj === "object") {
+      return Object.fromEntries(
+        Object.entries(obj).map(([k, v]) => [k, replaceUserIdDeep(v)])
+      );
+    }
+    return obj;
+  };
 
   return (
     <StudyView
@@ -22,8 +35,8 @@ export default async function StudyPage() {
         id: s.id,
         title: s.title,
         duration: s.duration,
-        contentText: s.contentText,
-        config: s.config as Record<string, unknown>,
+        contentText: s.contentText?.replaceAll("<USER_ID>", uid) ?? null,
+        config: replaceUserIdDeep(s.config) as Record<string, unknown>,
       }))}
       progress={progress.map((p) => ({
         stageId: p.stageId,
