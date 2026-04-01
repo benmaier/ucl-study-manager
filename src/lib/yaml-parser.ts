@@ -117,6 +117,11 @@ function parseFlow(flowPath: string, studyDir: string, cohortId: string): Parsed
       input: s.input ? { label: s.input.label, prompt: s.input.prompt ?? null } : null,
       link: s.link ? { label: s.link.label, url: s.link.url } : null,
       confirmation: s.confirmation ?? null,
+      sidebarPanels: (s.sidebar_panels ?? []).map((p) => ({
+        title: p.title,
+        content: p.content,
+        defaultExpanded: p.defaultExpanded,
+      })),
     };
   });
 }

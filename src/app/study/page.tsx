@@ -17,6 +17,18 @@ export default async function StudyPage() {
   const progress = participant.progress;
   const uid = participant.identifier;
 
+  // If all stages are completed and not a test user, clear session and redirect
+  const allDone = stages.every((s) => {
+    const prog = progress.find((p) => p.stageId === s.id);
+    return prog?.completedAt;
+  });
+  if (allDone && !isTestUser) {
+    cookieStore.delete("participant_id");
+    cookieStore.delete("chat_provider");
+    cookieStore.delete("is_test_user");
+    redirect("/");
+  }
+
   // Replace <USER_ID> in all string values (contentText, config link URLs, etc.)
   const replaceUserIdDeep = (obj: unknown): unknown => {
     if (typeof obj === "string") return obj.replaceAll("<USER_ID>", uid);

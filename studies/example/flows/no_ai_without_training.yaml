@@ -26,12 +26,6 @@ stages:
       prompt: "Briefly describe your approach to the cognitive test."
     confirmation: "I confirm I have completed the cognitive test."
 
-  - id: reading_material
-    title: "Background Reading"
-    duration: "10:00"
-    content: content/reading_material.md
-    confirmation: "I confirm I have read the material."
-
   - id: break
     title: "Short Break"
     duration: "5:00"

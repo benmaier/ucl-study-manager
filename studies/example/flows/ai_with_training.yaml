@@ -26,11 +26,15 @@ stages:
       prompt: "Briefly describe your approach to the cognitive test."
     confirmation: "I confirm I have completed the cognitive test."
 
-  - id: reading_material
-    title: "Background Reading"
+  - id: ai_training
+    title: "AI Tool Training"
     duration: "10:00"
-    content: content/reading_material.md
-    confirmation: "I confirm I have read the material."
+    content: content/ai_training.md
+    chatbot: true
+    sidebar_panels:
+      - title: "Training Guide"
+        content: "This is a practice session to help you get familiar with the AI assistant. Try asking it to summarise text, write code, analyse data, or create visualisations. Experiment with different ways of phrasing your requests to see how the AI responds. You can also ask it to run Python code — just describe what you want and it will write and execute it for you."
+        defaultExpanded: true
 
   - id: break
     title: "Short Break"
@@ -42,6 +46,7 @@ stages:
     title: "Data Analysis Task"
     duration: "30:00"
     content: content/task1_data_analysis.md
+    chatbot: true
     files:
       - filename: files/discrimination_campaign_data.csv
         description: "Student enrollment and discrimination complaint data from 1998-2003 across US schools."
@@ -49,6 +54,12 @@ stages:
         description: "Time series of average anonymous student complaints from 1998-2003."
       - filename: files/research_methodology.jpg
         description: "Research methodology reference image."
+    sidebar_panels:
+      - title: "Scenario"
+        content: "You are assisting a professor in evaluating the outcome of an anti-discrimination campaign across schools in the US conducted for one year in 2000. You have access to the professor's data folder to complete the analysis. Unfortunately, the professor let their kid play with the folder, so it may contain unnecessary files, and some data files may be corrupted or unreliable."
+        defaultExpanded: true
+      - title: "Data Description"
+        content: "The data folder contains student enrollment records with demographic information (gender, race, class, region) and discrimination complaint indicators spanning 1998-2003. There is also a separate file with time series data of average anonymous complaints. Be aware: not all files may be relevant, and some data sources may have quality issues. Part of the task is figuring out which data to trust."
     questions:
       - "Which files are relevant and which are irrelevant or unusable?"
       - "Did the number of complaints decrease after the campaign?"
@@ -62,9 +73,14 @@ stages:
     title: "Negotiation Task"
     duration: "20:00"
     content: content/task2_negotiation.md
+    chatbot: true
     link:
       label: "Open the negotiation app"
       url: "https://company-negotiation-experiment.empirica.app/?participantKey=<USER_ID>"
+    sidebar_panels:
+      - title: "Negotiation Context"
+        content: "You are about to enter a business negotiation simulation. Use the AI assistant to help you prepare your strategy: analyse the scenario, consider the other party's likely positions, develop your arguments, and plan your concessions. Once you feel prepared, open the negotiation app to begin. You can return to the AI assistant at any time during the negotiation for advice."
+        defaultExpanded: true
     input:
       label: "Your negotiation summary"
       prompt: "Describe your negotiation strategy, what happened during the negotiation, and the outcome you achieved."

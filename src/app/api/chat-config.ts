@@ -15,7 +15,7 @@ export async function getChatConfig(): Promise<ChatRouteConfig> {
   const participantId = cookieStore.get("participant_id")?.value;
 
   if (!participantId) {
-    return { provider: "anthropic", conversationsDir: "/tmp/conversations", apiBasePath: "/api" };
+    throw new Error("Not authenticated");
   }
 
   const pid = parseInt(participantId, 10);

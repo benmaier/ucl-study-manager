@@ -50,5 +50,10 @@ export default async function ChatPage() {
     );
   }
 
-  return <ChatPageClient />;
+  return (
+    <>
+      <title>AI Assist</title>
+      <ChatPageClient />
+    </>
+  );
 }

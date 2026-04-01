@@ -1,0 +1,10 @@
+id: gemini_trained
+label: "Gemini + AI Training"
+ai_access: true
+ai_training: true
+provider: gemini
+model: gemini-2.5-flash
+fallback:
+  provider: anthropic
+  model: claude-haiku-4-5-20251001
+study_flow: flows/ai_with_training.yaml

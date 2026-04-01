@@ -30,7 +30,11 @@ CREATE TABLE IF NOT EXISTS session_key_assignments (
 );
 
 -- ═══════════════════════════════════════════════════════
--- SECURITY DEFINER: fetch least-used API key for a participant's cohort
+-- SECURITY DEFINER: fetch least-used API key for a participant
+--
+-- Resolution order:
+--   1. Cohort-specific key (via cohort_key_pools) — if any are assigned
+--   2. Any active key for the provider (global pool fallback)
 -- ═══════════════════════════════════════════════════════
 
 CREATE OR REPLACE FUNCTION assign_api_key(p_participant_id INT, p_provider VARCHAR(20))
@@ -52,6 +56,7 @@ BEGIN
     RAISE EXCEPTION 'No participant found with id %', p_participant_id;
   END IF;
 
+  -- Try cohort-specific key first
   SELECT ak.id, ak.api_key INTO v_key_id, v_api_key
   FROM api_keys ak
   JOIN cohort_key_pools ckp ON ckp.api_key_id = ak.id
@@ -61,8 +66,18 @@ BEGIN
   ORDER BY ak.session_assignment_count ASC
   LIMIT 1;
 
+  -- Fall back to any active key for this provider
   IF v_key_id IS NULL THEN
-    RAISE EXCEPTION 'No active % key for cohort %', p_provider, v_cohort_id;
+    SELECT ak.id, ak.api_key INTO v_key_id, v_api_key
+    FROM api_keys ak
+    WHERE ak.provider = p_provider
+      AND ak.is_active = true
+    ORDER BY ak.session_assignment_count ASC
+    LIMIT 1;
+  END IF;
+
+  IF v_key_id IS NULL THEN
+    RAISE EXCEPTION 'No active % key available', p_provider;
   END IF;
 
   UPDATE api_keys SET session_assignment_count = session_assignment_count + 1

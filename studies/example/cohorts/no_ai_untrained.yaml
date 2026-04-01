@@ -2,4 +2,4 @@ id: no_ai_untrained
 label: "No AI + No Training"
 ai_access: false
 ai_training: false
-study_flow: flows/standard.yaml
+study_flow: flows/no_ai_without_training.yaml

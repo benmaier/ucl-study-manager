@@ -37,7 +37,7 @@ export default function LoginPage() {
 
   return (
     <main className="relative flex min-h-screen items-center justify-center bg-white">
-      <form onSubmit={handleSubmit} className="w-full max-w-md space-y-6 px-8">
+      <form onSubmit={handleSubmit} className="w-full max-w-md space-y-6 px-8" autoComplete="off">
         <h1 className="text-4xl font-normal text-heading text-center">
           UCL Study Manager
         </h1>
@@ -54,6 +54,8 @@ export default function LoginPage() {
             <input
               id="identifier"
               type="text"
+              name="study-id"
+              autoComplete="off"
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
               placeholder="e.g. stern-satin-karma"
@@ -68,7 +70,9 @@ export default function LoginPage() {
             </label>
             <input
               id="password"
-              type="password"
+              type="text"
+              name="study-pass"
+              autoComplete="off"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="e.g. steam-creek-silk-moose-globe-cloak"

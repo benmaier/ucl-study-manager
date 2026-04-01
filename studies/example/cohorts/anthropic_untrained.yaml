@@ -1,0 +1,10 @@
+id: anthropic_untrained
+label: "Anthropic + No Training"
+ai_access: true
+ai_training: false
+provider: anthropic
+model: claude-haiku-4-5-20251001
+fallback:
+  provider: gemini
+  model: gemini-2.5-flash
+study_flow: flows/ai_without_training.yaml

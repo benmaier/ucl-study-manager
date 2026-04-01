@@ -3,8 +3,15 @@
 import { useState, useEffect, useRef } from "react";
 import { ChatWidget } from "ucl-chat-widget/client";
 
+interface PanelData {
+  title: string;
+  content: string;
+  defaultExpanded?: boolean;
+}
+
 export default function ChatPageClient() {
   const [available, setAvailable] = useState(true);
+  const [panels, setPanels] = useState<PanelData[]>([]);
   const stageIdRef = useRef<number | null>(null);
 
   // Poll every 5 seconds to check stage status
@@ -18,6 +25,11 @@ export default function ChatPageClient() {
         if (!data.available) {
           setAvailable(false);
           return;
+        }
+
+        // Update sidebar panels
+        if (data.sidebarPanels) {
+          setPanels(data.sidebarPanels);
         }
 
         // If stage changed (moved to a different chatbot stage), reload
@@ -64,18 +76,11 @@ export default function ChatPageClient() {
         welcomeMessage: "How can I help with your analysis?",
         threadListLabel: "Your conversations",
         apiBasePath: "/api",
-        sidebarPanels: [
-          {
-            title: "Scenario",
-            content: (
-              <p>
-                You are assisting a professor in evaluating the outcome of an
-                anti-discrimination campaign across schools in the US.
-              </p>
-            ),
-            defaultExpanded: true,
-          },
-        ],
+        sidebarPanels: panels.map((p) => ({
+          title: p.title,
+          content: <p>{p.content}</p>,
+          defaultExpanded: p.defaultExpanded,
+        })),
       }}
     />
   );

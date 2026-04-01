@@ -53,6 +53,7 @@ export interface RawStage {
     url: string;
   };
   confirmation?: string;
+  sidebar_panels?: { title: string; content: string; defaultExpanded?: boolean }[];
 }
 
 // ── Parsed & validated types (ready for DB import) ──
@@ -92,6 +93,7 @@ export interface ParsedStage {
   input: { label: string; prompt: string | null } | null;
   link: { label: string; url: string } | null;
   confirmation: string | null;
+  sidebarPanels: { title: string; content: string; defaultExpanded?: boolean }[];
 }
 
 export interface ParsedStageFile {

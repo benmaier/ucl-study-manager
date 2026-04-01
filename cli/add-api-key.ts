@@ -5,15 +5,16 @@ const provider = process.argv[2];
 const apiKey = process.argv[3];
 const cohortIds = process.argv.slice(4);
 
-if (!provider || !apiKey || cohortIds.length === 0) {
+if (!provider || !apiKey) {
   console.error(
-    "Usage: npx tsx cli/add-api-key.ts <provider> <api-key> <cohort-db-id> [cohort-db-id ...]"
+    "Usage: npx tsx cli/add-api-key.ts <provider> <api-key> [cohort-db-id ...]"
   );
   console.error("  provider: anthropic | openai | gemini");
   console.error("  api-key: the actual API key string");
-  console.error("  cohort-db-id: numeric DB IDs of cohorts to assign this key to");
-  console.error("\nExample:");
-  console.error("  npx tsx cli/add-api-key.ts anthropic sk-ant-... 1 2");
+  console.error("  cohort-db-id: (optional) numeric DB IDs of cohorts to assign this key to");
+  console.error("\nExamples:");
+  console.error("  npx tsx cli/add-api-key.ts anthropic sk-ant-...          # available to all cohorts");
+  console.error("  npx tsx cli/add-api-key.ts anthropic sk-ant-... 5 6      # only for cohorts 5 and 6");
   process.exit(1);
 }
 
@@ -30,17 +31,23 @@ async function main() {
   const keyId = result.rows[0].id;
   console.log(`Added API key ID: ${keyId} (provider: ${provider})`);
 
-  // Link to cohorts
-  for (const cohortId of cohortIds) {
-    await client.query(
-      "INSERT INTO cohort_key_pools (cohort_id, api_key_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
-      [parseInt(cohortId, 10), keyId]
-    );
-    console.log(`  Linked to cohort ID: ${cohortId}`);
+  // Link to specific cohorts (optional)
+  if (cohortIds.length > 0) {
+    for (const cohortId of cohortIds) {
+      await client.query(
+        "INSERT INTO cohort_key_pools (cohort_id, api_key_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+        [parseInt(cohortId, 10), keyId]
+      );
+      console.log(`  Linked to cohort ID: ${cohortId}`);
+    }
+    console.log("\nDone. Key is assigned to specific cohorts.");
+  } else {
+    console.log("\nDone. Key is available globally (no cohort restriction).");
   }
 
+  console.log("Keys are resolved via assign_api_key(): cohort-specific first, then global pool.");
+
   await client.end();
-  console.log("\nDone. Key is now available via assign_api_key().");
 }
 
 main().catch((err) => {

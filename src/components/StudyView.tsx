@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 interface StageData {
   id: number;
@@ -179,6 +181,15 @@ export default function StudyView({
       });
       if (res.ok) {
         const data = await res.json();
+        const isLast = currentStageIndex >= stages.length - 1;
+
+        // Last stage for non-test users: logout and redirect
+        if (isLast && !isTestUser) {
+          await logout();
+          window.location.href = "/";
+          return;
+        }
+
         setProgress((prev) =>
           prev.map((p) =>
             p.stageId === currentStage.id
@@ -188,6 +199,12 @@ export default function StudyView({
         );
         setConfirmed(false);
       }
+    } catch {}
+  };
+
+  const logout = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
     } catch {}
   };
 
@@ -201,6 +218,14 @@ export default function StudyView({
     } catch {}
   };
 
+  // Auto-logout non-test users when study is completed
+  const [loggedOut, setLoggedOut] = useState(false);
+  useEffect(() => {
+    if (completed && !isTestUser && !loggedOut) {
+      logout().then(() => setLoggedOut(true));
+    }
+  }, [completed, isTestUser, loggedOut]);
+
   if (completed) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-white">
@@ -208,12 +233,20 @@ export default function StudyView({
           <h1 className="text-4xl font-normal text-heading">Thank you!</h1>
           <p className="text-body">You have completed the study.</p>
           {isTestUser && (
-            <button
-              onClick={resetUser}
-              className="mt-4 rounded-[5px] border border-red-300 px-6 py-2 text-sm text-red-600 hover:bg-red-50"
-            >
-              Reset this user
-            </button>
+            <>
+              <button
+                onClick={resetUser}
+                className="mt-4 rounded-[5px] border border-red-300 px-6 py-2 text-sm text-red-600 hover:bg-red-50"
+              >
+                Reset this user
+              </button>
+              <button
+                onClick={() => { logout().then(() => window.location.href = "/"); }}
+                className="block mx-auto rounded-[5px] border border-gray-300 px-6 py-2 text-sm text-gray-600 hover:bg-gray-50"
+              >
+                Log out
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -276,9 +309,15 @@ export default function StudyView({
             <p className="text-xs text-orange-600 uppercase tracking-wide font-medium">Testing</p>
             <button
               onClick={completeStage}
-              className="w-full rounded-[5px] border border-input-border px-3 py-2 text-sm text-heading"
+              className="w-full rounded-[5px] border border-input-border px-3 py-2 text-sm text-heading hover:bg-gray-100 active:bg-gray-200 transition-colors"
             >
               Next (skip timer)
+            </button>
+            <button
+              onClick={() => { logout().then(() => window.location.href = "/"); }}
+              className="w-full rounded-[5px] border border-gray-300 px-3 py-2 text-sm text-gray-500 hover:bg-gray-100 transition-colors"
+            >
+              Log out
             </button>
           </div>
         )}
@@ -290,7 +329,41 @@ export default function StudyView({
           {currentStage?.title}
         </h1>
 
-        {/* Stage content placeholder */}
+        {/* Markdown content */}
+        {currentStage?.contentText && (
+          <div className="max-w-none mb-8 text-sm text-body leading-relaxed [&_h1]:hidden [&_h2]:text-[22px] [&_h2]:font-normal [&_h2]:text-heading [&_h2]:mt-8 [&_h2]:mb-3 [&_h3]:text-[15px] [&_h3]:font-semibold [&_h3]:text-heading [&_h3]:mt-6 [&_h3]:mb-2 [&_p]:mb-3 [&_a]:text-blue-600 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:mb-3 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:mb-3 [&_li]:mb-1 [&_strong]:font-semibold">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {currentStage.contentText}
+            </ReactMarkdown>
+          </div>
+        )}
+
+        {/* Downloadable files */}
+        {(currentStage?.config?.files as { filename: string; description: string }[] | undefined)?.length ? (
+          <div className="mb-8">
+            <h2 className="text-[22px] font-normal text-heading mb-3">Data</h2>
+            <div className="space-y-2">
+              {(currentStage.config.files as { filename: string; description: string }[]).map((f) => {
+                const basename = f.filename.split("/").pop() ?? f.filename;
+                return (
+                  <div key={f.filename}>
+                    <a
+                      href={`/study-files/${basename}`}
+                      download={basename}
+                      className="text-blue-600 underline text-sm font-mono inline-flex items-center gap-1.5"
+                    >
+                      <svg className="w-4 h-4 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M14.5 11.5a.75.75 0 0 1 .75.75v3a1.75 1.75 0 0 1-1.75 1.75h-7A1.75 1.75 0 0 1 4.75 15.25v-3a.75.75 0 0 1 1.5 0v3a.25.25 0 0 0 .25.25h7a.25.25 0 0 0 .25-.25v-3a.75.75 0 0 1 .75-.75Z" /><path d="M10 3a.75.75 0 0 1 .75.75v6.69l1.72-1.72a.75.75 0 1 1 1.06 1.06l-3 3a.75.75 0 0 1-1.06 0l-3-3a.75.75 0 1 1 1.06-1.06l1.72 1.72V3.75A.75.75 0 0 1 10 3Z" /></svg>
+                      {basename}
+                    </a>
+                    {f.description && (
+                      <p className="text-sm text-body mt-0.5">{f.description}</p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
 
         {/* External link */}
         {Boolean(currentStage?.config?.link) && (
@@ -299,9 +372,10 @@ export default function StudyView({
               href={(currentStage.config.link as { url: string }).url}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-blue-600 underline text-sm"
+              className="text-blue-600 underline text-sm inline-flex items-center gap-1.5"
             >
               {(currentStage.config.link as { label: string }).label}
+              <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4.25 5.5a.75.75 0 0 0-.75.75v8.5c0 .414.336.75.75.75h8.5a.75.75 0 0 0 .75-.75v-4a.75.75 0 0 1 1.5 0v4A2.25 2.25 0 0 1 12.75 17h-8.5A2.25 2.25 0 0 1 2 14.75v-8.5A2.25 2.25 0 0 1 4.25 4h5a.75.75 0 0 1 0 1.5h-5Zm10.22-1.97a.75.75 0 0 0-.53-.22H11a.75.75 0 0 1 0-1.5h4.25a.75.75 0 0 1 .75.75V7a.75.75 0 0 1-1.5 0V4.81l-5.72 5.72a.75.75 0 1 1-1.06-1.06l5.72-5.72H11.5Z" clipRule="evenodd" /></svg>
             </a>
           </div>
         )}
@@ -358,52 +432,59 @@ export default function StudyView({
         )}
 
         {/* Submit section — always visible, active only after timer */}
-        {Boolean(currentStage?.config?.confirmation) && (
-          <div className="mt-8 space-y-3">
-            <label className={`flex items-start gap-2 text-sm cursor-pointer ${timerExpired ? "text-body" : "text-gray-400"}`}>
-              <input
-                type="checkbox"
-                className="mt-0.5"
-                checked={confirmed}
-                onChange={(e) => setConfirmed(e.target.checked)}
-                disabled={!timerExpired}
-              />
-              {currentStage.config.confirmation as string}
-            </label>
-            <button
-              disabled={!timerExpired || !confirmed}
-              onClick={completeStage}
-              className={`rounded-[5px] px-6 py-3 text-sm ${
-                timerExpired && confirmed
-                  ? "bg-btn-active-bg text-btn-active-text"
-                  : "bg-btn-inactive-bg text-btn-inactive-text cursor-not-allowed"
-              }`}
-            >
-              {currentStageIndex < stages.length - 1
-                ? "Submit your answer and proceed"
-                : "Complete study"}
-            </button>
-          </div>
-        )}
+        {(() => {
+          const hasInput = Boolean(currentStage?.config?.input);
+          const isLast = currentStageIndex >= stages.length - 1;
+          const buttonText = isLast
+            ? (isTestUser ? "Complete study" : "Finish the study and log out")
+            : hasInput
+              ? "Submit your answer and proceed"
+              : "Proceed";
 
-        {/* No confirmation — just a proceed button */}
-        {!Boolean(currentStage?.config?.confirmation) && (
-          <div className="mt-8">
-            <button
-              disabled={!timerExpired}
-              onClick={completeStage}
-              className={`rounded-[5px] px-6 py-3 text-sm ${
-                timerExpired
-                  ? "bg-btn-active-bg text-btn-active-text font-medium"
-                  : "bg-btn-inactive-bg text-btn-inactive-text cursor-not-allowed"
-              }`}
-            >
-              {currentStageIndex < stages.length - 1
-                ? "Proceed to next stage"
-                : "Complete study"}
-            </button>
-          </div>
-        )}
+          if (Boolean(currentStage?.config?.confirmation)) {
+            return (
+              <div className="mt-8 space-y-3">
+                <label className={`flex items-start gap-2 text-sm ${timerExpired ? "text-body cursor-pointer" : "text-gray-400"}`}>
+                  <input
+                    type="checkbox"
+                    className="mt-0.5"
+                    checked={confirmed}
+                    onChange={(e) => setConfirmed(e.target.checked)}
+                    disabled={!timerExpired}
+                  />
+                  {currentStage!.config.confirmation as string}
+                </label>
+                <button
+                  disabled={!timerExpired || !confirmed}
+                  onClick={completeStage}
+                  className={`rounded-[5px] px-6 py-3 text-sm ${
+                    timerExpired && confirmed
+                      ? "bg-btn-active-bg text-btn-active-text hover:opacity-90"
+                      : "bg-btn-inactive-bg text-btn-inactive-text"
+                  }`}
+                >
+                  {buttonText}
+                </button>
+              </div>
+            );
+          }
+
+          return (
+            <div className="mt-8">
+              <button
+                disabled={!timerExpired}
+                onClick={completeStage}
+                className={`rounded-[5px] px-6 py-3 text-sm ${
+                  timerExpired
+                    ? "bg-btn-active-bg text-btn-active-text font-medium hover:opacity-90"
+                    : "bg-btn-inactive-bg text-btn-inactive-text"
+                }`}
+              >
+                {buttonText}
+              </button>
+            </div>
+          );
+        })()}
       </main>
     </div>
   );
