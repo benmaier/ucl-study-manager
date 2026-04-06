@@ -1,18 +1,18 @@
-import { parseStudyYaml } from "../src/lib/yaml-parser.js";
-import { prisma } from "../src/lib/prisma.js";
+import { parseStudyYaml } from "./yaml-parser";
+import { prisma } from "./prisma";
 
-const yamlDir = process.argv[2];
-
-if (!yamlDir) {
-  console.error("Usage: npx tsx cli/import-study.ts <path-to-study-dir>");
-  process.exit(1);
+export interface ImportResult {
+  studyId: number;
+  title: string;
+  cohorts: { cohortId: string; label: string; stageCount: number }[];
 }
 
-try {
-  const parsed = parseStudyYaml(yamlDir);
-  console.log(
-    `Parsed study: "${parsed.title}" (${parsed.cohorts.length} cohorts, ${parsed.cohorts.reduce((n, c) => n + c.stages.length, 0)} total stages)`
-  );
+/**
+ * Import a study from a directory path into the database.
+ * Reuses the same logic as cli/import-study.ts.
+ */
+export async function importStudyFromDir(studyDir: string): Promise<ImportResult> {
+  const parsed = parseStudyYaml(studyDir);
 
   // Upsert study
   const study = await prisma.study.upsert({
@@ -29,7 +29,8 @@ try {
     },
   });
 
-  // Upsert cohorts and their stages
+  const cohortResults: ImportResult["cohorts"] = [];
+
   for (const c of parsed.cohorts) {
     const cohort = await prisma.cohort.upsert({
       where: { studyId_cohortId: { studyId: study.id, cohortId: c.cohortId } },
@@ -81,22 +82,17 @@ try {
         });
       }
     }
+
+    cohortResults.push({
+      cohortId: c.cohortId,
+      label: c.label,
+      stageCount: c.stages.length,
+    });
   }
 
-  console.log(`\nImported study ID: ${study.id}`);
-  console.log(`  Title: ${study.title}`);
-  for (const c of parsed.cohorts) {
-    const chatStages = c.stages.filter((s) => s.chatbot).map((s) => s.stageId);
-    const info = chatStages.length > 0 ? `chatbot on: ${chatStages.join(", ")}` : "no chatbot";
-    console.log(`  Cohort "${c.cohortId}": ${c.stages.length} stages (${info})`);
-  }
-} catch (err) {
-  if (err instanceof Error) {
-    console.error(`Error: ${err.message}`);
-  } else {
-    console.error(err);
-  }
-  process.exit(1);
-} finally {
-  await prisma.$disconnect();
+  return {
+    studyId: study.id,
+    title: parsed.title,
+    cohorts: cohortResults,
+  };
 }

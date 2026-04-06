@@ -24,7 +24,6 @@ interface Props {
   progress: ProgressData[];
   studyTitle: string;
   cohortLabel: string;
-  aiAccess: boolean;
   isTestUser: boolean;
 }
 
@@ -39,7 +38,6 @@ export default function StudyView({
   progress: initialProgress,
   studyTitle,
   cohortLabel,
-  aiAccess,
   isTestUser,
 }: Props) {
   const [progress, setProgress] = useState<ProgressData[]>(initialProgress);
@@ -329,14 +327,58 @@ export default function StudyView({
           {currentStage?.title}
         </h1>
 
-        {/* Markdown content */}
-        {currentStage?.contentText && (
-          <div className="max-w-none mb-8 text-sm text-body leading-relaxed [&_h1]:hidden [&_h2]:text-[22px] [&_h2]:font-normal [&_h2]:text-heading [&_h2]:mt-8 [&_h2]:mb-3 [&_h3]:text-[15px] [&_h3]:font-semibold [&_h3]:text-heading [&_h3]:mt-6 [&_h3]:mb-2 [&_p]:mb-3 [&_a]:text-blue-600 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:mb-3 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:mb-3 [&_li]:mb-1 [&_strong]:font-semibold">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-              {currentStage.contentText}
-            </ReactMarkdown>
+        {/* Chatbot button (at top if chatbot enabled but no placeholder in content) */}
+        {Boolean(currentStage?.config?.chatbot) && !currentStage?.contentText?.includes("<AI_ASSISTANT_BUTTON>") && (
+          <div className="mb-8">
+            <button
+              onClick={() => window.open("/chat", "_blank")}
+              className="rounded-[5px] bg-btn-active-bg px-6 py-3 text-sm font-medium text-btn-active-text"
+            >
+              Open AI Assistant
+            </button>
           </div>
         )}
+
+        {/* Markdown content (with inline AI_ASSISTANT_BUTTON support) */}
+        {currentStage?.contentText && (() => {
+          const hasChatbot = Boolean(currentStage.config?.chatbot);
+          const placeholder = "<AI_ASSISTANT_BUTTON>";
+          const mdClasses = "max-w-none mb-8 text-sm text-body leading-relaxed [&_h1]:hidden [&_h2]:text-[22px] [&_h2]:font-normal [&_h2]:text-heading [&_h2]:mt-8 [&_h2]:mb-3 [&_h3]:text-[15px] [&_h3]:font-semibold [&_h3]:text-heading [&_h3]:mt-6 [&_h3]:mb-2 [&_p]:mb-3 [&_a]:text-blue-600 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:mb-3 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:mb-3 [&_li]:mb-1 [&_strong]:font-semibold";
+
+          if (hasChatbot && currentStage.contentText!.includes(placeholder)) {
+            const parts = currentStage.contentText!.split(placeholder);
+            return (
+              <>
+                {parts[0] && (
+                  <div className={mdClasses}>
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{parts[0]}</ReactMarkdown>
+                  </div>
+                )}
+                <div className="mb-8">
+                  <button
+                    onClick={() => window.open("/chat", "_blank")}
+                    className="rounded-[5px] bg-btn-active-bg px-6 py-3 text-sm font-medium text-btn-active-text"
+                  >
+                    Open AI Assistant
+                  </button>
+                </div>
+                {parts.slice(1).join("").trim() && (
+                  <div className={mdClasses}>
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{parts.slice(1).join("")}</ReactMarkdown>
+                  </div>
+                )}
+              </>
+            );
+          }
+
+          return (
+            <div className={mdClasses}>
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {currentStage.contentText!}
+              </ReactMarkdown>
+            </div>
+          );
+        })()}
 
         {/* Downloadable files */}
         {(currentStage?.config?.files as { filename: string; description: string }[] | undefined)?.length ? (
@@ -377,20 +419,6 @@ export default function StudyView({
               {(currentStage.config.link as { label: string }).label}
               <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4.25 5.5a.75.75 0 0 0-.75.75v8.5c0 .414.336.75.75.75h8.5a.75.75 0 0 0 .75-.75v-4a.75.75 0 0 1 1.5 0v4A2.25 2.25 0 0 1 12.75 17h-8.5A2.25 2.25 0 0 1 2 14.75v-8.5A2.25 2.25 0 0 1 4.25 4h5a.75.75 0 0 1 0 1.5h-5Zm10.22-1.97a.75.75 0 0 0-.53-.22H11a.75.75 0 0 1 0-1.5h4.25a.75.75 0 0 1 .75.75V7a.75.75 0 0 1-1.5 0V4.81l-5.72 5.72a.75.75 0 1 1-1.06-1.06l5.72-5.72H11.5Z" clipRule="evenodd" /></svg>
             </a>
-          </div>
-        )}
-
-        {/* Chatbot button */}
-        {aiAccess && Boolean(currentStage?.config?.chatbot) && (
-          <div className="mb-8">
-            <h2 className="text-[22px] font-normal text-heading mb-3">AI Chatbot</h2>
-            <p className="text-sm text-body mb-3">Use the AI assistant to help with this task.</p>
-            <button
-              onClick={() => window.open("/chat", "_blank")}
-              className="rounded-[5px] bg-btn-active-bg px-6 py-3 text-sm font-medium text-btn-active-text"
-            >
-              Open AI Assistant
-            </button>
           </div>
         )}
 

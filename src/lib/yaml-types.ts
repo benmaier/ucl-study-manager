@@ -1,34 +1,49 @@
 // ── Raw YAML types (direct mapping of file contents) ──
 
-/** study.yaml — top-level entry point */
+/** study.yaml — top-level entry point with inline base stages */
 export interface RawStudyYaml {
+  id: string;
   title: string;
   description?: string;
-  fallback?: {
-    provider: string;
-    model: string;
-  };
-  cohorts: string[]; // relative paths to cohort YAML files
+  stages: RawStage[]; // base flow, inline
+  // cohorts auto-discovered from cohorts/ subdirectory
 }
 
-/** cohorts/*.yaml — cohort definition */
+/** cohorts/*.yaml — cohort definition with optional stage overrides */
 export interface RawCohortYaml {
   id: string;
   label: string;
-  ai_access: boolean;
-  ai_training: boolean;
   provider?: string;
   model?: string;
   fallback?: {
     provider: string;
     model: string;
   };
-  study_flow: string; // relative path to flow YAML
+  stages?: RawCohortStageOverride[]; // overrides/additions/skips relative to base
 }
 
-/** flows/*.yaml — study flow (stages) */
-export interface RawFlowYaml {
-  stages: RawStage[];
+/** A stage entry in a cohort YAML — can override, add, or skip a stage */
+export interface RawCohortStageOverride {
+  id: string;
+  skip?: boolean;
+
+  // Insertion position for new stages (required if id not in base flow)
+  after?: string;
+  before?: string;
+
+  // All RawStage fields are optional (only specified fields override base)
+  title?: string;
+  duration?: string;
+  content?: string;
+  chatbot?: boolean;
+  provider?: string;  // stage-level override of cohort default
+  model?: string;
+  files?: (string | RawStageFile)[];
+  questions?: string[];
+  input?: { label: string; prompt?: string } | null;
+  link?: { label: string; url: string } | null;
+  confirmation?: string | null;
+  sidebar_panels?: { title: string; content: string; defaultExpanded?: boolean }[] | null;
 }
 
 export interface RawStageFile {
@@ -42,6 +57,8 @@ export interface RawStage {
   duration: string; // "MM:SS"
   content?: string; // relative path to MD file
   chatbot?: boolean;
+  provider?: string;  // stage-level provider override
+  model?: string;     // stage-level model override
   files?: (string | RawStageFile)[];
   questions?: string[];
   input?: {
@@ -59,10 +76,9 @@ export interface RawStage {
 // ── Parsed & validated types (ready for DB import) ──
 
 export interface ParsedStudy {
+  studyId: string;
   title: string;
   description: string | null;
-  fallbackProvider: string | null;
-  fallbackModel: string | null;
   cohorts: ParsedCohort[];
   sourceDir: string;
 }
@@ -70,13 +86,10 @@ export interface ParsedStudy {
 export interface ParsedCohort {
   cohortId: string;
   label: string;
-  aiAccess: boolean;
-  aiTraining: boolean;
   provider: string | null;
   model: string | null;
   fallbackProvider: string | null;
   fallbackModel: string | null;
-  studyFlowRef: string;
   stages: ParsedStage[];
 }
 

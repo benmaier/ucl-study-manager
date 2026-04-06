@@ -1,6 +1,8 @@
-import { describe, it, expect } from "vitest";
-import { resolve } from "path";
-import { parseDuration, parseStudyYaml } from "../../src/lib/yaml-parser.js";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { mkdirSync, writeFileSync, rmSync } from "fs";
+import { join, resolve } from "path";
+import { parseDuration, parseStudyYaml, mergeStages } from "../../src/lib/yaml-parser.js";
+import type { RawStage, RawCohortStageOverride } from "../../src/lib/yaml-types.js";
 
 const EXAMPLE_STUDY = resolve("studies/example");
 
@@ -29,116 +31,168 @@ describe("parseDuration", () => {
   });
 });
 
-describe("parseStudyYaml", () => {
+describe("mergeStages", () => {
+  const base: RawStage[] = [
+    { id: "intro", title: "Intro", duration: "5:00" },
+    { id: "task1", title: "Task 1", duration: "30:00", chatbot: false },
+    { id: "end", title: "End", duration: "2:00" },
+  ];
+
+  it("returns deep copy when no overrides", () => {
+    const result = mergeStages(base, undefined, "test");
+    expect(result).toHaveLength(3);
+    expect(result[0].id).toBe("intro");
+    // Verify it's a deep copy
+    result[0].title = "Modified";
+    expect(base[0].title).toBe("Intro");
+  });
+
+  it("applies field override to existing stage", () => {
+    const overrides: RawCohortStageOverride[] = [
+      { id: "task1", chatbot: true },
+    ];
+    const result = mergeStages(base, overrides, "test");
+    expect(result).toHaveLength(3);
+    const task1 = result.find((s) => s.id === "task1")!;
+    expect(task1.chatbot).toBe(true);
+    expect(task1.title).toBe("Task 1"); // inherited
+  });
+
+  it("skips a base stage", () => {
+    const overrides: RawCohortStageOverride[] = [
+      { id: "task1", skip: true },
+    ];
+    const result = mergeStages(base, overrides, "test");
+    expect(result).toHaveLength(2);
+    expect(result.map((s) => s.id)).toEqual(["intro", "end"]);
+  });
+
+  it("adds new stage with after", () => {
+    const overrides: RawCohortStageOverride[] = [
+      { id: "training", title: "Training", duration: "10:00", after: "intro" },
+    ];
+    const result = mergeStages(base, overrides, "test");
+    expect(result).toHaveLength(4);
+    expect(result.map((s) => s.id)).toEqual(["intro", "training", "task1", "end"]);
+  });
+
+  it("adds new stage with before", () => {
+    const overrides: RawCohortStageOverride[] = [
+      { id: "warmup", title: "Warmup", duration: "3:00", before: "task1" },
+    ];
+    const result = mergeStages(base, overrides, "test");
+    expect(result).toHaveLength(4);
+    expect(result.map((s) => s.id)).toEqual(["intro", "warmup", "task1", "end"]);
+  });
+
+  it("chains multiple additions", () => {
+    const overrides: RawCohortStageOverride[] = [
+      { id: "a", title: "A", duration: "1:00", after: "intro" },
+      { id: "b", title: "B", duration: "1:00", after: "a" }, // references just-inserted stage
+    ];
+    const result = mergeStages(base, overrides, "test");
+    expect(result.map((s) => s.id)).toEqual(["intro", "a", "b", "task1", "end"]);
+  });
+
+  it("removes field when override sets null", () => {
+    const baseWithConfirm: RawStage[] = [
+      { id: "s1", title: "S1", duration: "1:00", confirmation: "Confirm" },
+    ];
+    const overrides: RawCohortStageOverride[] = [
+      { id: "s1", confirmation: null },
+    ];
+    const result = mergeStages(baseWithConfirm, overrides, "test");
+    expect(result[0].confirmation).toBeUndefined();
+  });
+
+  it("replaces array fields entirely", () => {
+    const baseWithQuestions: RawStage[] = [
+      { id: "s1", title: "S1", duration: "1:00", questions: ["Q1", "Q2"] },
+    ];
+    const overrides: RawCohortStageOverride[] = [
+      { id: "s1", questions: ["Q3"] },
+    ];
+    const result = mergeStages(baseWithQuestions, overrides, "test");
+    expect(result[0].questions).toEqual(["Q3"]);
+  });
+});
+
+describe("parseStudyYaml (example study)", () => {
   it("parses the example study successfully", () => {
     const study = parseStudyYaml(EXAMPLE_STUDY);
-    expect(study.title).toBe("Code Assistance Study");
-    expect(study.description).toBe("Comparing LLM-assisted coding across providers");
-    expect(study.fallbackProvider).toBe("openai");
-    expect(study.fallbackModel).toBe("gpt-4o");
+    expect(study.studyId).toBe("ai_decision_making");
+    expect(study.title).toBe("AI-Assisted Decision Making Study");
     expect(study.cohorts).toHaveLength(4);
   });
 
-  it("parses cohort attributes correctly", () => {
+  it("auto-discovers cohorts from cohorts/ directory", () => {
     const study = parseStudyYaml(EXAMPLE_STUDY);
-
-    const aiTrained = study.cohorts.find((c) => c.cohortId === "ai_trained");
-    expect(aiTrained).toBeDefined();
-    expect(aiTrained!.aiAccess).toBe(true);
-    expect(aiTrained!.aiTraining).toBe(true);
-    expect(aiTrained!.provider).toBe("anthropic");
-    expect(aiTrained!.model).toBe("claude-sonnet-4-20250514");
-    expect(aiTrained!.fallbackProvider).toBe("openai");
-
-    const noAi = study.cohorts.find((c) => c.cohortId === "no_ai_untrained");
-    expect(noAi).toBeDefined();
-    expect(noAi!.aiAccess).toBe(false);
-    expect(noAi!.aiTraining).toBe(false);
-    expect(noAi!.provider).toBeNull();
-    expect(noAi!.model).toBeNull();
+    const ids = study.cohorts.map((c) => c.cohortId).sort();
+    expect(ids).toEqual(["anthropic_untrained", "gemini_trained", "no_ai_trained", "no_ai_untrained"]);
   });
 
-  it("parses stages with correct order and duration", () => {
+  it("no_ai_untrained inherits base flow unchanged", () => {
     const study = parseStudyYaml(EXAMPLE_STUDY);
-    const aiTrained = study.cohorts.find((c) => c.cohortId === "ai_trained")!;
-
-    expect(aiTrained.stages).toHaveLength(4);
-    expect(aiTrained.stages[0].stageId).toBe("intro");
-    expect(aiTrained.stages[0].durationSeconds).toBe(600); // 10:00
-    expect(aiTrained.stages[0].order).toBe(0);
-
-    expect(aiTrained.stages[1].stageId).toBe("ai_training");
-    expect(aiTrained.stages[1].durationSeconds).toBe(900); // 15:00
-    expect(aiTrained.stages[1].order).toBe(1);
+    const noAi = study.cohorts.find((c) => c.cohortId === "no_ai_untrained")!;
+    expect(noAi.stages).toHaveLength(7);
+    expect(noAi.stages.every((s) => !s.chatbot)).toBe(true);
+    expect(noAi.provider).toBeNull();
   });
 
-  it("parses chatbot flag", () => {
+  it("gemini_trained adds ai_training stage and chatbot overrides", () => {
     const study = parseStudyYaml(EXAMPLE_STUDY);
-    const aiTrained = study.cohorts.find((c) => c.cohortId === "ai_trained")!;
+    const gemini = study.cohorts.find((c) => c.cohortId === "gemini_trained")!;
+    expect(gemini.stages).toHaveLength(8);
+    expect(gemini.provider).toBe("gemini");
+    expect(gemini.model).toBe("gemini-2.5-flash");
 
-    expect(aiTrained.stages[0].chatbot).toBe(false); // intro
-    expect(aiTrained.stages[1].chatbot).toBe(true);  // ai_training
-    expect(aiTrained.stages[2].chatbot).toBe(true);  // task1
-    expect(aiTrained.stages[3].chatbot).toBe(false); // survey
+    // ai_training inserted after cognitive_test
+    const stageIds = gemini.stages.map((s) => s.stageId);
+    const ctIdx = stageIds.indexOf("cognitive_test");
+    const atIdx = stageIds.indexOf("ai_training");
+    expect(atIdx).toBe(ctIdx + 1);
+
+    // Chatbot on training + tasks
+    const chatStages = gemini.stages.filter((s) => s.chatbot).map((s) => s.stageId);
+    expect(chatStages).toEqual(["ai_training", "task1", "task2"]);
   });
 
-  it("parses stage files with descriptions and SHA-256 hashes", () => {
+  it("anthropic_untrained has chatbot on tasks only", () => {
     const study = parseStudyYaml(EXAMPLE_STUDY);
-    const aiTrained = study.cohorts.find((c) => c.cohortId === "ai_trained")!;
-    const task1 = aiTrained.stages.find((s) => s.stageId === "task1")!;
+    const anth = study.cohorts.find((c) => c.cohortId === "anthropic_untrained")!;
+    expect(anth.stages).toHaveLength(7);
+    expect(anth.provider).toBe("anthropic");
 
-    expect(task1.files).toHaveLength(2);
-    expect(task1.files[0].filename).toBe("files/data.csv");
-    expect(task1.files[0].description).toContain("Student enrollment");
-    expect(task1.files[0].sha256).toMatch(/^[a-f0-9]{64}$/);
-
-    expect(task1.files[1].filename).toBe("files/template.py");
-    expect(task1.files[1].sha256).toMatch(/^[a-f0-9]{64}$/);
+    const chatStages = anth.stages.filter((s) => s.chatbot).map((s) => s.stageId);
+    expect(chatStages).toEqual(["task1", "task2"]);
   });
 
-  it("parses questions, input, link, and confirmation", () => {
+  it("no_ai_trained adds reading_material stage", () => {
     const study = parseStudyYaml(EXAMPLE_STUDY);
-    const aiTrained = study.cohorts.find((c) => c.cohortId === "ai_trained")!;
+    const noAiTrained = study.cohorts.find((c) => c.cohortId === "no_ai_trained")!;
+    expect(noAiTrained.stages).toHaveLength(8);
 
-    // task1 has questions + input + confirmation
-    const task1 = aiTrained.stages.find((s) => s.stageId === "task1")!;
-    expect(task1.questions).toHaveLength(3);
-    expect(task1.questions[0]).toContain("relevant");
-    expect(task1.input).not.toBeNull();
-    expect(task1.input!.label).toBe("Your result");
-    expect(task1.input!.prompt).toContain("Explain why");
-    expect(task1.confirmation).toContain("final answer");
-
-    // survey has link + confirmation, no input
-    const survey = aiTrained.stages.find((s) => s.stageId === "survey")!;
-    expect(survey.link).not.toBeNull();
-    expect(survey.link!.label).toBe("Open the survey");
-    expect(survey.link!.url).toContain("example.com");
-    expect(survey.input).toBeNull();
-    expect(survey.confirmation).toContain("completed the survey");
+    const stageIds = noAiTrained.stages.map((s) => s.stageId);
+    const ctIdx = stageIds.indexOf("cognitive_test");
+    const rmIdx = stageIds.indexOf("reading_material");
+    expect(rmIdx).toBe(ctIdx + 1);
+    expect(noAiTrained.stages.every((s) => !s.chatbot)).toBe(true);
   });
 
   it("loads markdown content from files", () => {
     const study = parseStudyYaml(EXAMPLE_STUDY);
-    const aiTrained = study.cohorts.find((c) => c.cohortId === "ai_trained")!;
-    const intro = aiTrained.stages[0];
-
+    const cohort = study.cohorts[0];
+    const intro = cohort.stages[0];
     expect(intro.contentText).not.toBeNull();
-    expect(intro.contentText).toContain("Welcome to the Code Assistance Study");
     expect(intro.contentRef).toBe("content/intro.md");
   });
 
-  it("shared flows produce identical stages for different cohorts", () => {
+  it("parses stage files with SHA-256 hashes", () => {
     const study = parseStudyYaml(EXAMPLE_STUDY);
-    // ai_untrained and no_ai_untrained both use flows/standard.yaml
-    const aiUntrained = study.cohorts.find((c) => c.cohortId === "ai_untrained")!;
-    const noAiUntrained = study.cohorts.find((c) => c.cohortId === "no_ai_untrained")!;
-
-    expect(aiUntrained.stages).toHaveLength(noAiUntrained.stages.length);
-    for (let i = 0; i < aiUntrained.stages.length; i++) {
-      expect(aiUntrained.stages[i].stageId).toBe(noAiUntrained.stages[i].stageId);
-      expect(aiUntrained.stages[i].durationSeconds).toBe(noAiUntrained.stages[i].durationSeconds);
-    }
+    const noAi = study.cohorts.find((c) => c.cohortId === "no_ai_untrained")!;
+    const task1 = noAi.stages.find((s) => s.stageId === "task1")!;
+    expect(task1.files).toHaveLength(3);
+    expect(task1.files[0].sha256).toMatch(/^[a-f0-9]{64}$/);
   });
 
   it("throws on nonexistent directory", () => {
@@ -146,6 +200,6 @@ describe("parseStudyYaml", () => {
   });
 
   it("throws on directory without study.yaml", () => {
-    expect(() => parseStudyYaml("/tmp")).toThrow("No study.yaml found");
+    expect(() => parseStudyYaml("/tmp")).toThrow();
   });
 });

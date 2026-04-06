@@ -57,7 +57,6 @@ export default async function StudyPage() {
       }))}
       studyTitle={participant.session.study.title}
       cohortLabel={participant.cohort.label}
-      aiAccess={participant.cohort.aiAccess}
       isTestUser={isTestUser}
     />
   );

@@ -8,13 +8,12 @@ datasource db {
 }
 
 model Study {
-  id               Int       @id @default(autoincrement())
-  title            String
-  description      String?
-  sourceDir        String?   @map("source_dir")
-  fallbackProvider String?   @map("fallback_provider")
-  fallbackModel    String?   @map("fallback_model")
-  createdAt        DateTime  @default(now()) @map("created_at")
+  id          Int       @id @default(autoincrement())
+  studyId     String?   @unique @map("study_id")
+  title       String
+  description String?
+  sourceDir   String?   @map("source_dir")
+  createdAt   DateTime  @default(now()) @map("created_at")
 
   cohorts  Cohort[]
   sessions StudySession[]
@@ -26,13 +25,10 @@ model Cohort {
   id               Int      @id @default(autoincrement())
   cohortId         String   @map("cohort_id")
   label            String
-  aiAccess         Boolean  @map("ai_access")
-  aiTraining       Boolean  @map("ai_training")
   provider         String?
   model            String?
   fallbackProvider String?  @map("fallback_provider")
   fallbackModel    String?  @map("fallback_model")
-  studyFlowRef     String?  @map("study_flow_ref")
   studyId          Int      @map("study_id")
 
   study        Study         @relation(fields: [studyId], references: [id], onDelete: Cascade)

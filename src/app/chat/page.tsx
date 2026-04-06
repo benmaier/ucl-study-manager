@@ -19,7 +19,6 @@ export default async function ChatPage() {
     select: {
       cohort: {
         select: {
-          aiAccess: true,
           stages: {
             select: { id: true, config: true },
             orderBy: { order: "asc" },

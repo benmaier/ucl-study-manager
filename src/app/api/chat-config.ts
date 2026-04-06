@@ -44,14 +44,20 @@ export async function getChatConfig(): Promise<ChatRouteConfig> {
     },
   });
 
-  const provider = (participant?.cohort.provider as "anthropic" | "openai" | "gemini") || "anthropic";
-
   // Current stage: started but not completed, with chatbot enabled
   const currentChatStage = participant?.cohort.stages.find((s) => {
     const prog = participant.progress.find((p) => p.stageId === s.id);
     const hasChatbot = (s.config as Record<string, unknown>)?.chatbot;
     return hasChatbot && prog && !prog.completedAt;
   });
+
+  // Provider resolution: stage config > cohort default
+  const stageConfig = currentChatStage?.config as Record<string, unknown> | undefined;
+  const provider = (
+    (stageConfig?.provider as string) ||
+    participant?.cohort.provider ||
+    "anthropic"
+  ) as "anthropic" | "openai" | "gemini";
 
   const stageId = currentChatStage?.id || 0;
 

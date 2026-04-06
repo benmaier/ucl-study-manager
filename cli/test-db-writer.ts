@@ -16,7 +16,7 @@ import type { SerializedConversation, TurnRecord, UploadRecord } from "ucl-study
 async function main() {
   // Find a participant in the ai_trained cohort
   const participant = await prisma.participant.findFirst({
-    where: { cohort: { aiAccess: true } },
+    where: { cohort: { provider: { not: null } } },
     include: {
       cohort: {
         include: {

@@ -66,7 +66,6 @@ export async function POST(request: NextRequest) {
         id: participant.cohort.id,
         cohortId: participant.cohort.cohortId,
         label: participant.cohort.label,
-        aiAccess: participant.cohort.aiAccess,
         stages: participant.cohort.stages.map((s) => ({
           id: s.id,
           stageId: s.stageId,

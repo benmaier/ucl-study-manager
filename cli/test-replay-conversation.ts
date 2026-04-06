@@ -24,7 +24,7 @@ async function main() {
 
   // Find a participant + chatbot stage to log against
   const participant = await prisma.participant.findFirst({
-    where: { cohort: { aiAccess: true } },
+    where: { cohort: { provider: { not: null } } },
     include: {
       cohort: {
         include: {

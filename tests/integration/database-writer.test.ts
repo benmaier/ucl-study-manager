@@ -20,7 +20,7 @@ beforeAll(async () => {
 
   // Find or create test data: we need a participant + a stage with a known file hash
   const participant = await prisma.participant.findFirst({
-    where: { cohort: { aiAccess: true } },
+    where: { cohort: { provider: { not: null } } },
     include: {
       cohort: {
         include: { stages: { include: { files: true }, orderBy: { order: "asc" } } },

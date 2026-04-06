@@ -71,8 +71,8 @@ study
 
 | Model               | Purpose                                                                                  |
 |----------------------|------------------------------------------------------------------------------------------|
-| `Study`             | Imported from study.yaml. Title, description, global fallback provider/model.            |
-| `Cohort`            | Experimental condition. ID, label, `aiAccess`, `aiTraining` booleans, provider/model/fallback. Each cohort has its own stages from its flow YAML. |
+| `Study`             | Imported from study.yaml. Title, description, inline base stages.                        |
+| `Cohort`            | Experimental condition. ID, label, provider/model/fallback. Each cohort inherits base stages with optional overrides. |
 | `Stage`             | Ordered phase within a cohort's flow. Title, duration, content, `chatbot` boolean, questions, input config, link, confirmation. Belongs to Cohort. |
 | `StageFile`         | Downloadable task file with description and SHA-256 hash. Belongs to Stage.              |
 | `StudySession`      | A run of a study with a specific set of participants. Links to Study.                    |
@@ -83,11 +83,13 @@ study
 
 ### Chatbot Visibility
 
-No join table needed. Simple boolean check:
+Simple per-stage check (resolved at import time via cohort overrides):
 
 ```
-show_chatbot = stage.chatbot === true AND cohort.aiAccess === true
+show_chatbot = stage.config.chatbot === true
 ```
+
+The `<AI_ASSISTANT_BUTTON>` placeholder in markdown content controls button placement. If not present, button renders at the top of the page.
 
 ### File Deduplication in Chat Logs
 
@@ -99,116 +101,116 @@ When a file is uploaded to the LLM during chat:
 
 ## Study YAML Format
 
-Studies use a 3-level YAML hierarchy. All paths are relative to the study directory.
+Studies use inline base stages in study.yaml with cohort overrides. Cohorts are auto-discovered from the `cohorts/` subdirectory.
 
 ```
 studies/my_study/
-├── study.yaml                    # entry point
+├── study.yaml                    # entry point with inline base stages
 ├── cohorts/
-│   ├── ai_trained.yaml           # cohort definition → points to flow
-│   ├── ai_untrained.yaml
-│   ├── no_ai_trained.yaml
-│   └── no_ai_untrained.yaml
-├── flows/
-│   ├── with_training.yaml        # stage sequence for trained cohorts
-│   ├── standard.yaml             # stage sequence shared by multiple cohorts
-│   └── no_ai_with_training.yaml  # no-AI variant with training stage
+│   ├── ai_trained.yaml           # cohort with stage overrides
+│   ├── no_ai_untrained.yaml      # cohort inheriting base as-is
+│   └── ...
 ├── content/
 │   ├── intro.md, task1.md, ...   # markdown content for stages
 └── files/
     ├── data.csv, template.py     # downloadable task files
 ```
 
-### study.yaml (entry point)
+### study.yaml (entry point with inline stages)
 
 ```yaml
-title: "Code Assistance Study"
-description: "Comparing LLM-assisted coding across providers"
+id: ai_decision_making
+title: "AI-Assisted Decision Making Study"
+description: "2x2 design comparing AI access and training"
 
-fallback:
-  provider: openai
-  model: gpt-4o
-
-cohorts:
-  - cohorts/ai_trained.yaml
-  - cohorts/ai_untrained.yaml
-  - cohorts/no_ai_trained.yaml
-  - cohorts/no_ai_untrained.yaml
-```
-
-### Cohort YAML
-
-Defines a cohort's experimental condition and points to its study flow.
-
-```yaml
-id: ai_trained
-label: "AI Access + AI Training"
-ai_access: true
-ai_training: true
-provider: anthropic
-model: claude-sonnet-4-20250514
-fallback:
-  provider: openai
-  model: gpt-4o
-study_flow: flows/with_training.yaml
-```
-
-Cohorts with `ai_access: false` must NOT have `provider`/`model`:
-
-```yaml
-id: no_ai_untrained
-label: "No AI + No Training"
-ai_access: false
-ai_training: false
-study_flow: flows/standard.yaml
-```
-
-### Flow YAML (stage sequence)
-
-Defines the ordered stages a cohort goes through. Multiple cohorts can share the same flow.
-
-```yaml
 stages:
   - id: intro
     title: "Welcome & Instructions"
-    duration: "10:00"
+    duration: "5:00"
     content: content/intro.md
     confirmation: "I confirm I have read and understood the instructions."
-
-  - id: ai_training
-    title: "AI Tool Training"
-    duration: "15:00"
-    content: content/ai_training.md
-    chatbot: true
 
   - id: task1
     title: "Data Analysis Task"
     duration: "30:00"
     content: content/task1.md
-    chatbot: true
     files:
       - filename: files/data.csv
-        description: "Student enrollment and complaint data from 1998-2003."
-      - filename: files/template.py
-        description: "Python template with analysis functions to complete."
+        description: "Student enrollment and complaint data."
     questions:
-      - "Which files are relevant and which are irrelevant or unusable?"
-      - "Did the number of complaints decrease after the campaign?"
-      - "Do you think the campaign was successful?"
+      - "Which files are relevant?"
     input:
       label: "Your result"
-      prompt: "Explain why you reached these conclusions."
-    confirmation: "I confirm this is my final answer and I'm aware I won't be able to edit it after submitting."
+      prompt: "Explain your reasoning."
+    confirmation: "I confirm this is my final answer."
 
-  - id: survey
-    title: "Post-Study Survey"
-    duration: "10:00"
-    content: content/survey.md
-    link:
-      label: "Open the survey"
-      url: "https://example.com/survey"
-    confirmation: "I confirm I completed the survey linked above."
+  - id: end
+    title: "Thank You"
+    duration: "2:00"
+    content: content/end.md
 ```
+
+No `cohorts:` list — all `.yaml` files in `cohorts/` are auto-discovered.
+
+### Cohort YAML (overrides only)
+
+Cohorts inherit all base stages. They only define what differs: overrides, additions, or skips.
+
+```yaml
+id: ai_trained
+label: "AI Access + Training"
+provider: anthropic
+model: claude-sonnet-4-20250514
+fallback:
+  provider: gemini
+  model: gemini-2.5-flash
+
+stages:
+  - id: training                   # ADD new stage (not in base)
+    title: "AI Training"
+    duration: "10:00"
+    content: content/training.md
+    chatbot: true
+    after: intro                   # insertion position
+
+  - id: task1                      # OVERRIDE existing stage
+    chatbot: true                  # only changed fields
+    sidebar_panels:
+      - title: "Scenario"
+        content: "Context for the task..."
+```
+
+Cohort with no changes:
+
+```yaml
+id: no_ai_untrained
+label: "No AI + No Training"
+```
+
+### Override Semantics
+
+| Operation | Syntax | Rules |
+|-----------|--------|-------|
+| **Override** | Stage `id` matches base | Only specified fields replace base values. Omitted = inherited. |
+| **Add** | Stage `id` NOT in base | Must have `after: <id>` or `before: <id>`, plus `title` + `duration`. |
+| **Skip** | `skip: true` on base `id` | Removes stage from this cohort's flow. |
+
+Field values replace entirely (no deep merge). Set to `null` (YAML `~`) to explicitly remove a field.
+
+### Provider/Model Resolution
+
+```
+1. stage.config.provider/model  →  stage-level override
+2. cohort.provider/model        →  default for all chatbot stages
+```
+
+Cohort must have `provider`/`model` if any resolved stage has `chatbot: true` (unless that stage has its own).
+
+### `<AI_ASSISTANT_BUTTON>` Placeholder
+
+When a stage has `chatbot: true`:
+- If markdown contains `<AI_ASSISTANT_BUTTON>`, the button renders at that position
+- If no placeholder, button renders at the top of the page
 
 ### YAML Field Reference
 
@@ -216,10 +218,10 @@ stages:
 
 | Field | Description |
 |-------|-------------|
+| `id` | Unique study identifier |
 | `title` | Study name |
 | `description` | Study description |
-| `fallback` | Global fallback `{provider, model}` if cohort's provider is down |
-| `cohorts` | List of relative paths to cohort YAML files |
+| `stages` | Base flow: ordered list of stage definitions |
 
 **Cohort YAML:**
 
@@ -227,31 +229,35 @@ stages:
 |-------|-------------|
 | `id` | Unique cohort identifier |
 | `label` | Human-readable cohort name |
-| `ai_access` | `true`/`false` — whether this cohort gets chatbot on chatbot-enabled stages |
-| `ai_training` | `true`/`false` — whether this cohort receives pre-study AI training |
-| `provider` | LLM provider: `anthropic`, `openai`, or `google`. Required if `ai_access: true`. |
-| `model` | Model ID. Required if `ai_access: true`. |
-| `fallback` | Per-cohort fallback `{provider, model}` |
-| `study_flow` | Relative path to the flow YAML for this cohort |
+| `provider` | LLM provider (`anthropic`, `openai`, `gemini`). Required if any stage has chatbot. |
+| `model` | Model ID. Required if provider is set. |
+| `fallback` | Fallback `{provider, model}` if primary fails |
+| `stages` | Optional list of stage overrides/additions/skips |
 
-**Flow YAML (stages):**
+**Stage fields (base + overrides):**
 
 | Field | Description |
 |-------|-------------|
-| `stages[].id` | Unique stage identifier within this flow |
-| `stages[].title` | Stage title shown to participant |
-| `stages[].duration` | Duration as `"MM:SS"` string |
-| `stages[].content` | Relative path to markdown file |
-| `stages[].chatbot` | `true`/`false` — show chatbot for `ai_access` cohorts. Default: `false`. |
-| `stages[].files` | List of `{filename, description}` objects — downloadable task files |
-| `stages[].questions` | List of sub-questions in the "Submit your answer" section |
-| `stages[].input` | Text input config: `{label, prompt?}`. Omit = no input field. |
-| `stages[].link` | External link: `{label, url}`. For stages that redirect elsewhere (surveys). |
-| `stages[].confirmation` | Text for the confirmation checkbox. Must be checked before submit. |
+| `id` | Stage identifier (matches base for override, new for addition) |
+| `title` | Stage title shown to participant |
+| `duration` | Duration as `"MM:SS"` string |
+| `content` | Relative path to markdown file |
+| `chatbot` | `true`/`false` — show AI chatbot button. Default: `false`. |
+| `provider` | Stage-level LLM provider override |
+| `model` | Stage-level model override |
+| `files` | List of `{filename, description}` — downloadable task files |
+| `questions` | List of sub-questions |
+| `input` | Text input: `{label, prompt?}`. Omit = no input field. |
+| `link` | External link: `{label, url}` |
+| `confirmation` | Confirmation checkbox text |
+| `sidebar_panels` | Chat sidebar panels: `[{title, content, defaultExpanded?}]` |
+| `skip` | `true` to remove this base stage (cohort overrides only) |
+| `after` | Insert after this stage ID (new stages only) |
+| `before` | Insert before this stage ID (new stages only) |
 
 ### MD Content Files
 
-Markdown files serve as rich content for stages: instructions, task descriptions, reading material, survey prompts, etc. They are rendered to participants during the corresponding stage.
+Markdown files serve as rich content for stages. They are rendered to participants during the corresponding stage. Use `<AI_ASSISTANT_BUTTON>` to place the chatbot button inline. Use `<USER_ID>` as a template variable replaced with the participant's identifier at runtime.
 
 ## Design System (from Figma)
 
@@ -322,11 +328,11 @@ Reference: [Figma file](https://www.figma.com/design/RXjJLcWy3VKcykA44Hr3UL/AI-M
 ### Chatbot
 - Uses `ucl-study-llm-chat-api` Conversation class for multi-turn chat.
 - Supports sandboxed code execution (Python/bash) via provider containers.
-- Provider and model determined by participant's **cohort** assignment.
-- If primary provider fails, automatically falls back to cohort's fallback provider, then to the study's global fallback.
+- Provider/model resolution: stage config → cohort default → error.
+- If primary provider fails, falls back to cohort's fallback provider.
 - Chat turns are logged to PostgreSQL (`ChatLog` table).
 - File uploads are deduplicated against known task files (see File Deduplication above).
-- Chatbot only shown when `stage.chatbot === true AND cohort.aiAccess === true`.
+- Chatbot shown when `stage.config.chatbot === true` (resolved per-cohort at import time).
 
 ### Study Sessions
 A study definition can be run multiple times. Each run is a `StudySession` with its own participants and collected data.

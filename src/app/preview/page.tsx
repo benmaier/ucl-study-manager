@@ -51,7 +51,7 @@ export default function PreviewPage() {
               >
                 <span className="font-medium text-heading">{cohort.label}</span>
                 <span className="text-sm text-gray-500 ml-2">
-                  ({cohort.stages.length} stages{cohort.aiAccess ? ", AI access" : ""})
+                  ({cohort.stages.length} stages{cohort.provider ? `, ${cohort.provider}` : ""})
                 </span>
               </button>
             ))}
@@ -171,10 +171,8 @@ export default function PreviewPage() {
           )}
 
           {/* Chatbot */}
-          {stage.chatbot && selectedCohort.aiAccess && (
+          {stage.chatbot && (
             <div className="mb-8">
-              <h2 className="text-[22px] font-normal text-heading mb-3">AI Chatbot</h2>
-              <p className="text-sm text-body mb-3">Use the AI assistant to help with this task.</p>
               <button
                 onClick={() => window.open("/chat", "_blank")}
                 className="rounded-[5px] bg-btn-active-bg px-6 py-3 text-sm font-medium text-btn-active-text"

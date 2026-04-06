@@ -1,12 +1,75 @@
+id: ai_decision_making
 title: "AI-Assisted Decision Making Study"
-description: "2x2 design comparing AI access (Gemini/Anthropic) and AI training on data analysis and negotiation tasks"
+description: "2x2 design comparing AI access (Gemini/Anthropic) and training on data analysis and negotiation tasks"
 
-fallback:
-  provider: anthropic
-  model: claude-haiku-4-5-20251001
+stages:
+  - id: intro
+    title: "Welcome & Instructions"
+    duration: "5:00"
+    content: content/intro.md
+    confirmation: "I confirm I have read and understood the instructions."
 
-cohorts:
-  - cohorts/gemini_trained.yaml
-  - cohorts/anthropic_untrained.yaml
-  - cohorts/no_ai_trained.yaml
-  - cohorts/no_ai_untrained.yaml
+  - id: personality_survey
+    title: "Personality Survey"
+    duration: "5:00"
+    content: content/personality_survey.md
+    link:
+      label: "Open the personality survey"
+      url: "https://personality-survey.example.com/?user=<USER_ID>"
+    confirmation: "I confirm I have completed the personality survey."
+
+  - id: cognitive_test
+    title: "Cognitive Ability Test"
+    duration: "10:00"
+    content: content/cognitive_test.md
+    link:
+      label: "Open the cognitive test"
+      url: "https://cognitive-test.example.com/?user=<USER_ID>"
+    input:
+      label: "Your response"
+      prompt: "Briefly describe your approach to the cognitive test."
+    confirmation: "I confirm I have completed the cognitive test."
+
+  - id: break
+    title: "Short Break"
+    duration: "5:00"
+    content: content/break.md
+    confirmation: "I am ready to continue."
+
+  - id: task1
+    title: "Data Analysis Task"
+    duration: "30:00"
+    content: content/task1_data_analysis.md
+    files:
+      - filename: files/discrimination_campaign_data.csv
+        description: "Student enrollment and discrimination complaint data from 1998-2003 across US schools."
+      - filename: files/student_anonymous_complaints_v2.csv
+        description: "Time series of average anonymous student complaints from 1998-2003."
+      - filename: files/research_methodology.jpg
+        description: "Research methodology reference image."
+    questions:
+      - "Which files are relevant and which are irrelevant or unusable?"
+      - "Did the number of complaints decrease after the campaign?"
+      - "Do you think the campaign was successful?"
+    input:
+      label: "Your analysis"
+      prompt: "Explain your findings and reasoning. Include which files you used and why."
+    confirmation: "I confirm this is my final answer and I'm aware I won't be able to edit it after submitting."
+
+  - id: task2
+    title: "Negotiation Task"
+    duration: "20:00"
+    content: content/task2_negotiation.md
+    link:
+      label: "Open the negotiation app"
+      url: "https://company-negotiation-experiment.empirica.app/?participantKey=<USER_ID>"
+    input:
+      label: "Your negotiation summary"
+      prompt: "Describe your negotiation strategy, what happened during the negotiation, and the outcome you achieved."
+    confirmation: "I confirm this is my final answer."
+
+  - id: end
+    title: "Thank You"
+    duration: "2:00"
+    content: content/end.md
+    confirmation: "I confirm I have finished the study."
