@@ -39,7 +39,7 @@ export default function AdminPreviewPage() {
     const studyId = params.get("studyId");
     const cohortId = params.get("cohortId");
     if (studyId && cohortId) {
-      fetch(`/api/admin/studies?preview=${studyId}&cohort=${cohortId}`)
+      fetch("/api/admin/list-studies", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ preview: studyId, cohort: cohortId }) })
         .then((res) => res.json())
         .then((data) => {
           if (data.error) {

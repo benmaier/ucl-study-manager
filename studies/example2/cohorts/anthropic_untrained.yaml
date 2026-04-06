@@ -1,0 +1,24 @@
+id: anthropic_untrained
+label: "Anthropic + No Training"
+provider: anthropic
+model: claude-haiku-4-5-20251001
+fallback:
+  provider: gemini
+  model: gemini-2.5-flash
+
+stages:
+  - id: task1
+    chatbot: true
+    sidebar_panels:
+      - title: "Scenario"
+        content: "You are assisting a professor in evaluating the outcome of an anti-discrimination campaign across schools in the US conducted for one year in 2000. You have access to the professor's data folder to complete the analysis. Unfortunately, the professor let their kid play with the folder, so it may contain unnecessary files, and some data files may be corrupted or unreliable."
+        defaultExpanded: true
+      - title: "Data Description"
+        content: "The data folder contains student enrollment records with demographic information (gender, race, class, region) and discrimination complaint indicators spanning 1998-2003. There is also a separate file with time series data of average anonymous complaints. Be aware: not all files may be relevant, and some data sources may have quality issues. Part of the task is figuring out which data to trust."
+
+  - id: task2
+    chatbot: true
+    sidebar_panels:
+      - title: "Negotiation Context"
+        content: "You are about to enter a business negotiation simulation. Use the AI assistant to help you prepare your strategy: analyse the scenario, consider the other party's likely positions, develop your arguments, and plan your concessions. Once you feel prepared, open the negotiation app to begin. You can return to the AI assistant at any time during the negotiation for advice."
+        defaultExpanded: true

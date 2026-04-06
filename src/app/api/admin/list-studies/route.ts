@@ -2,16 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { isAdminAuthenticated } from "@/lib/admin-auth";
 import { prisma } from "@/lib/prisma";
 
-export const dynamic = "force-dynamic";
-
-export async function GET(request: NextRequest) {
+export async function POST(request: NextRequest) {
   if (!(await isAdminAuthenticated())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { searchParams } = new URL(request.url);
-  const previewStudyId = searchParams.get("preview");
-  const previewCohortId = searchParams.get("cohort");
+  const body = await request.json().catch(() => ({})) as Record<string, string>;
+  const previewStudyId = body.preview;
+  const previewCohortId = body.cohort;
 
   // DB-based preview: return full stage data for a single cohort
   if (previewStudyId && previewCohortId) {
@@ -36,7 +34,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Cohort not found" }, { status: 404 });
     }
 
-    // Return in ParsedStudy-like shape so preview page can render it
     return NextResponse.json({
       studyId: study.studyId,
       title: study.title,

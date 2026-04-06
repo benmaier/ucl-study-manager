@@ -46,7 +46,7 @@ export default function AdminPage() {
 
   const fetchStudies = useCallback(async () => {
     try {
-      const res = await fetch("/api/admin/studies");
+      const res = await fetch("/api/admin/list-studies", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
       if (res.ok) {
         setStudies(await res.json());
       } else if (res.status === 401) {
