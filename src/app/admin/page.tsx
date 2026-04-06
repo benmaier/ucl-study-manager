@@ -385,11 +385,6 @@ export default function AdminPage() {
                 </p>
               ))}
             </div>
-            {s.sessions.length > 0 && (
-              <p className="ml-4 mt-1 text-xs text-gray-400">
-                Sessions: {s.sessions.map((ss) => ss.label || `#${ss.id}`).join(", ")}
-              </p>
-            )}
           </div>
         ))}
       </section>
