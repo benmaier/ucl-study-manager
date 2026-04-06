@@ -1,6 +1,45 @@
+# ============================================================================
+# study.yaml — Main study definition
+# ============================================================================
+#
+# This file defines the study metadata and the BASE FLOW of stages.
+# All cohorts inherit these stages by default. Individual cohorts can then
+# override, add, or skip stages (see cohort files in cohorts/).
+#
+# Cohort files are auto-discovered: every .yaml file in the cohorts/
+# subdirectory is loaded automatically. No need to list them here.
+#
+# All file paths (content, files) are relative to this directory.
+# ============================================================================
+
+# Unique identifier for this study (used for database lookups and CSV imports)
 id: ai_decision_making
+
+# Human-readable title shown in the admin panel
 title: "AI-Assisted Decision Making Study"
+
+# Optional description
 description: "2x2 design comparing AI access (Gemini/Anthropic) and training on data analysis and negotiation tasks"
+
+# ============================================================================
+# Base stages — the default flow that all cohorts inherit
+# ============================================================================
+# Each stage has:
+#   id:           Unique identifier (used by cohorts to override this stage)
+#   title:        Shown to participants as the page heading
+#   duration:     Format "MM:SS" — timer counts down, submit button appears after
+#   content:      Path to a markdown file with the stage instructions
+#   confirmation: Text for a checkbox the participant must tick before submitting
+#   chatbot:      true/false — show AI assistant button (default: false)
+#   files:        List of downloadable files with descriptions
+#   questions:    Sub-questions displayed before the input field
+#   input:        Text area for participant responses (label + optional prompt)
+#   link:         External link (label + url) — opens in new tab
+#   sidebar_panels: Info panels shown in the AI chat sidebar
+#
+# Template variable: <USER_ID> is replaced with the participant's identifier
+# at runtime, in both markdown content and all config strings (e.g. URLs).
+# ============================================================================
 
 stages:
   - id: intro
@@ -36,6 +75,7 @@ stages:
     content: content/break.md
     confirmation: "I am ready to continue."
 
+  # A stage with downloadable files, sub-questions, and a text input
   - id: task1
     title: "Data Analysis Task"
     duration: "30:00"
@@ -56,6 +96,7 @@ stages:
       prompt: "Explain your findings and reasoning. Include which files you used and why."
     confirmation: "I confirm this is my final answer and I'm aware I won't be able to edit it after submitting."
 
+  # A stage with an external link (e.g. to another web app)
   - id: task2
     title: "Negotiation Task"
     duration: "20:00"

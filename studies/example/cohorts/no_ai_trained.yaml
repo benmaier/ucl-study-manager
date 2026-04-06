@@ -1,7 +1,27 @@
+# ============================================================================
+# Cohort: No AI + Training
+# ============================================================================
+#
+# This cohort does NOT give participants access to an AI assistant,
+# but includes a "Background Reading" stage as an alternative to AI training.
+#
+# Since there's no chatbot, no provider/model is needed.
+#
+# Compared to the base flow, the only change is:
+#   - A new "reading_material" stage is added after cognitive_test
+#
+# Everything else is inherited unchanged.
+# ============================================================================
+
 id: no_ai_trained
 label: "No AI + Training"
 
+# No provider/model — this cohort has no chatbot stages
+
 stages:
+  # ADD: Insert a reading stage after cognitive_test.
+  # This is the non-AI equivalent of the "ai_training" stage
+  # that the AI cohorts get.
   - id: reading_material
     title: "Background Reading"
     duration: "10:00"

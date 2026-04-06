@@ -1,23 +1,67 @@
+# ============================================================================
+# Cohort: Gemini + AI Training
+# ============================================================================
+#
+# This cohort gives participants access to an AI assistant (Google Gemini)
+# and includes an AI training stage before the main tasks.
+#
+# HOW OVERRIDES WORK:
+#
+# Every cohort inherits ALL stages from study.yaml's base flow.
+# The "stages" list below only defines what's DIFFERENT for this cohort:
+#
+#   OVERRIDE a stage:  Use the same "id" as a base stage. Only the fields
+#                      you specify will change — everything else is inherited.
+#                      Example: setting "chatbot: true" on task1 adds the AI
+#                      button while keeping all other task1 fields (title,
+#                      duration, files, questions, etc.) from the base.
+#
+#   ADD a new stage:   Use an "id" that doesn't exist in the base flow.
+#                      You must specify "after: <stage_id>" or
+#                      "before: <stage_id>" to set the insertion position,
+#                      plus at least "title" and "duration".
+#
+#   SKIP a stage:      Set "skip: true" on a base stage id to remove it
+#                      from this cohort's flow entirely.
+#
+# Fields set to null (~) explicitly remove that field from the base stage.
+# Fields not mentioned at all are inherited unchanged.
+# Arrays and objects (files, questions, sidebar_panels, input, link)
+# are replaced entirely, not merged.
+# ============================================================================
+
 id: gemini_trained
 label: "Gemini + AI Training"
+
+# Default AI provider for all chatbot-enabled stages in this cohort.
+# Individual stages can override this with their own provider/model.
 provider: gemini
 model: gemini-2.5-flash
+
+# Fallback provider if the primary fails
 fallback:
   provider: anthropic
   model: claude-haiku-4-5-20251001
 
 stages:
+  # ADD: Insert a new "AI Training" stage after "cognitive_test".
+  # This stage does not exist in the base flow — it's unique to this cohort.
+  # "after: cognitive_test" places it between cognitive_test and break.
   - id: ai_training
     title: "AI Tool Training"
     duration: "10:00"
     content: content/ai_training.md
     chatbot: true
+    after: cognitive_test
     sidebar_panels:
       - title: "Training Guide"
         content: "This is a practice session to help you get familiar with the AI assistant. Try asking it to summarise text, write code, analyse data, or create visualisations. Experiment with different ways of phrasing your requests to see how the AI responds. You can also ask it to run Python code — just describe what you want and it will write and execute it for you."
         defaultExpanded: true
-    after: cognitive_test
 
+  # OVERRIDE: Enable the AI chatbot on the data analysis task.
+  # Only "chatbot" and "sidebar_panels" are specified — all other fields
+  # (title, duration, content, files, questions, input, confirmation)
+  # are inherited from the base flow unchanged.
   - id: task1
     chatbot: true
     sidebar_panels:
@@ -27,6 +71,7 @@ stages:
       - title: "Data Description"
         content: "The data folder contains student enrollment records with demographic information (gender, race, class, region) and discrimination complaint indicators spanning 1998-2003. There is also a separate file with time series data of average anonymous complaints. Be aware: not all files may be relevant, and some data sources may have quality issues. Part of the task is figuring out which data to trust."
 
+  # OVERRIDE: Enable the AI chatbot on the negotiation task.
   - id: task2
     chatbot: true
     sidebar_panels:
