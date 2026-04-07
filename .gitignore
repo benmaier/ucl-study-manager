@@ -5,7 +5,8 @@ dist-electron/
 dist/
 out/
 .env
-.env.local
+.env.*
+dotenv
 *.tsbuildinfo
 exports/
 .vercel
