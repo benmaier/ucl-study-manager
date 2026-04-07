@@ -620,7 +620,7 @@ export default function AdminPage() {
             <option value="">Select cohort...</option>
             {selectedStudy?.cohorts.map((c) => (
               <option key={c.cohortId} value={c.cohortId}>
-                {c.label} ({c.stageCount} stages{c.provider ? `, ${c.provider}` : ""})
+                {c.label} ({c.cohortId}, {c.stageCount} stages{c.provider ? `, ${c.provider}` : ""})
               </option>
             ))}
           </select>
