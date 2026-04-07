@@ -338,72 +338,182 @@ npx tsx cli/run-sql.ts sql/setup.sql
 
 ## Local development
 
+### Prerequisites
+
+- Node.js 22+ (check with `node -v`)
+- A PostgreSQL database (local or remote — the CLI tools connect directly)
+
+### Setup
+
 ```bash
+# Clone the repo
+git clone https://github.com/benmaier/ucl-study-manager.git
+cd ucl-study-manager
+
+# Install dependencies
 npm install
 
 # Set up environment
 cp .env.example .env
-# Edit .env with your DATABASE_URL
+```
 
-# Push schema to database
+Edit `.env` and set `DATABASE_URL` to your PostgreSQL connection string:
+
+```
+DATABASE_URL=postgresql://user:password@host:5432/dbname
+```
+
+If you're connecting to the existing Neon database (shared with the Vercel deployment), ask the current maintainer for the connection string. The CLI tools and the dev server both use this same `DATABASE_URL`.
+
+```bash
+# Push the Prisma schema to the database (creates/updates tables)
 npx prisma db push
 
-# Set up key pool tables
+# Set up API key pool tables (PostgreSQL functions, only needed once)
 npx tsx cli/run-sql.ts sql/setup.sql
 
-# Start dev server
+# Start the dev server
 npm run dev
 ```
 
-The app runs at `http://localhost:3000`. Use `npx prisma studio` to browse the database.
+The app runs at `http://localhost:3000`. The admin panel is at `http://localhost:3000/admin`.
+
+For the admin panel to work locally, set `ADMIN_PASSWORD` in `.env`:
+
+```
+ADMIN_PASSWORD=any-password-you-want-locally
+```
+
+### Useful commands
+
+```bash
+# Browse the database in a web UI
+npx prisma studio
+
+# Validate a study without importing (interactive terminal preview)
+npx tsx cli/validate-study.ts studies/example/
+
+# Import a study into the database
+npx tsx cli/import-study.ts studies/example/
+
+# Generate test participants
+npx tsx cli/create-session.ts <study-db-id> --label "Test"
+npx tsx cli/generate-participants.ts <session-id> --count 5 --cohort <cohort-id> --test
+
+# Export all data for a session
+npx tsx cli/export-results.ts <session-id> --output-dir ./exports
+```
+
+### Complete local workflow
+
+```bash
+# 1. Validate your study YAML (browse stages interactively)
+npx tsx cli/validate-study.ts studies/my_study/
+
+# 2. Import it
+npx tsx cli/import-study.ts studies/my_study/
+# → outputs study DB ID and cohort info
+
+# 3. Create a session
+npx tsx cli/create-session.ts 1 --label "Local test"
+# → outputs session ID
+
+# 4. Generate test participants
+npx tsx cli/generate-participants.ts 1 --count 2 --cohort gemini_trained --test
+# → outputs usernames and passwords (save these!)
+
+# 5. Add API keys for chat (if testing chatbot stages)
+npx tsx cli/add-api-key.ts anthropic sk-ant-api03-...
+npx tsx cli/add-api-key.ts gemini AIzaSy...
+
+# 6. Start the server and log in
+npm run dev
+# Open http://localhost:3000 and use the credentials from step 4
+
+# 7. After testing, export data
+npx tsx cli/export-results.ts 1 --output-dir ./exports/test
+```
 
 ---
 
 ## Deployment to Vercel
 
-### Prerequisites
+### What you need from the current maintainer
 
-- A Vercel account with the project linked
-- A Neon PostgreSQL database (or any PostgreSQL provider)
+To work with the existing deployment, you'll need:
 
-### Environment variables
+| Credential | What it's for |
+|------------|---------------|
+| **Neon `DATABASE_URL`** | Connect CLI tools and local dev server to the shared database |
+| **Vercel team invite** | Deploy to production and manage environment variables |
+| **Admin password** | Log in to the `/admin` panel on the deployed app |
+| **LLM API keys** (optional) | Test chatbot stages locally (Anthropic, Gemini) |
 
-Set these in the Vercel dashboard (Settings → Environment Variables):
+### Joining the existing deployment
+
+The project is deployed at https://ucl-study-manager.vercel.app. To get access:
+
+1. Ask the current maintainer to invite you to the Vercel team ("benmaier's projects")
+2. Install the Vercel CLI: `npm i -g vercel`
+3. Log in: `vercel login`
+4. Link the project: `vercel link` (select the existing project when prompted)
+5. Pull environment variables: `vercel env pull .env` (this gives you the production `DATABASE_URL` for CLI use)
+
+Once linked, you can deploy:
+
+```bash
+# Preview deploy (creates a temporary URL)
+vercel deploy
+
+# Production deploy (updates ucl-study-manager.vercel.app)
+vercel deploy --prod
+```
+
+### Setting up a new deployment from scratch
+
+1. Create a Vercel account and a Neon PostgreSQL database
+2. Link the repo: `vercel` (follow prompts)
+3. Add the Neon integration in Vercel dashboard (auto-sets `DATABASE_URL`)
+4. Set environment variables in Vercel dashboard (Settings → Environment Variables):
 
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `DATABASE_URL` | Yes | PostgreSQL connection string (auto-set by Neon integration) |
-| `ADMIN_PASSWORD` | Yes | Password for the `/admin` panel |
+| `ADMIN_PASSWORD` | Yes | Password for the `/admin` panel (use a high-entropy string) |
 | `GOOGLE_API_KEY` | If using Gemini | Google AI API key |
 | `ANTHROPIC_API_KEY` | If using Anthropic | Anthropic API key |
 
-### Deploy
+5. Deploy: `vercel deploy --prod`
+6. After the first deploy, set up the database:
 
 ```bash
-# Preview deploy
-vercel deploy
+# Pull the connection string locally
+vercel env pull .env
 
-# Production deploy
-vercel deploy --prod
-```
-
-### After deployment
-
-```bash
-# Push schema (if changed)
+# Push schema
 npx prisma db push
 
-# Set up key pool tables (first time or after schema changes with --accept-data-loss)
+# Set up key pool tables
 npx tsx cli/run-sql.ts sql/setup.sql
 
 # Add API keys
 npx tsx cli/add-api-key.ts anthropic sk-ant-...
 npx tsx cli/add-api-key.ts gemini AIzaSy...
+```
 
-# Import a study
-npx tsx cli/import-study.ts studies/example/
+7. Import a study via the admin panel or CLI, create participants, and you're live.
+
+### After schema changes
+
+If `prisma/schema.prisma` is modified:
+
+```bash
+npx prisma db push              # updates tables (may need --accept-data-loss for column drops)
+npx tsx cli/run-sql.ts sql/setup.sql  # re-creates key pool functions (dropped by schema push)
+npx tsx cli/add-api-key.ts ...  # re-add API keys if key pool tables were recreated
+vercel deploy --prod            # deploy the new code
 ```
 
 ### Known issue
 
-GET route handlers in Next.js App Router can silently return 404 on Vercel. All API routes in this project use POST to work around this. If adding new routes, use POST.
+GET route handlers in Next.js App Router can silently return 404 on Vercel production. All API routes in this project use POST to work around this. If adding new routes, use POST.
