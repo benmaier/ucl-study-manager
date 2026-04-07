@@ -28,11 +28,13 @@ export default function AdminPage() {
   // Studies data
   const [studies, setStudies] = useState<StudyInfo[]>([]);
 
-  // Import study
+  // Import study — state machine: idle → validating → validated → confirming → importing → done | error
+  const [importState, setImportState] = useState<"idle" | "validating" | "validated" | "confirming" | "importing" | "done" | "error">("idle");
   const [importFile, setImportFile] = useState<File | null>(null);
-  const [importStatus, setImportStatus] = useState("");
-  const [importing, setImporting] = useState(false);
-  const [previewing, setPreviewing] = useState(false);
+  const [importError, setImportError] = useState("");
+  const [importResult, setImportResult] = useState("");
+  const [parsedStudy, setParsedStudy] = useState<{ studyId: string; title: string; description: string | null; cohorts: { cohortId: string; label: string; stages: { stageId: string }[] }[] } | null>(null);
+  const [dragOver, setDragOver] = useState(false);
 
   // CSV upload
   const [csvFile, setCsvFile] = useState<File | null>(null);
@@ -90,50 +92,82 @@ export default function AdminPage() {
     }
   };
 
+  const validateFile = async (file: File) => {
+    setImportFile(file);
+    setImportState("validating");
+    setImportError("");
+    setParsedStudy(null);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/admin/preview-study", { method: "POST", body: formData });
+      const data = await res.json();
+      if (res.ok) {
+        setParsedStudy(data);
+        setImportState("validated");
+      } else {
+        setImportError(data.error || "Validation failed.");
+        setImportState("error");
+      }
+    } catch {
+      setImportError("Failed to upload file.");
+      setImportState("error");
+    }
+  };
+
   const handleImportStudy = async () => {
     if (!importFile) return;
-    setImporting(true);
-    setImportStatus("");
+    setImportState("importing");
     try {
       const formData = new FormData();
       formData.append("file", importFile);
       const res = await fetch("/api/admin/import-study", { method: "POST", body: formData });
       const data = await res.json();
       if (res.ok) {
-        setImportStatus(`Imported study "${data.title}" (ID: ${data.studyId}) with ${data.cohorts.length} cohorts.`);
+        setImportResult(`Imported "${data.title}" with ${data.cohorts.length} cohorts.`);
+        setImportState("done");
         setImportFile(null);
+        setParsedStudy(null);
         fetchStudies();
       } else {
-        setImportStatus(`Error: ${data.error}`);
+        setImportError(data.error || "Import failed.");
+        setImportState("error");
       }
     } catch {
-      setImportStatus("Error: Failed to upload.");
-    } finally {
-      setImporting(false);
+      setImportError("Failed to upload file.");
+      setImportState("error");
     }
   };
 
-  const handlePreviewStudy = async () => {
-    if (!importFile) return;
-    setPreviewing(true);
-    setImportStatus("");
-    try {
-      const formData = new FormData();
-      formData.append("file", importFile);
-      const res = await fetch("/api/admin/preview-study", { method: "POST", body: formData });
-      const data = await res.json();
-      if (res.ok) {
-        sessionStorage.setItem("admin_preview_study", JSON.stringify(data));
-        window.open("/admin/preview", "_blank");
-      } else {
-        setImportStatus(`Error: ${data.error}`);
-      }
-    } catch {
-      setImportStatus("Error: Failed to upload.");
-    } finally {
-      setPreviewing(false);
-    }
+  const handlePreviewStudy = () => {
+    if (!parsedStudy) return;
+    sessionStorage.setItem("admin_preview_study", JSON.stringify(parsedStudy));
+    window.open("/admin/preview", "_blank");
   };
+
+  const resetImport = () => {
+    setImportState("idle");
+    setImportFile(null);
+    setParsedStudy(null);
+    setImportError("");
+    setImportResult("");
+  };
+
+  const handleFileDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    const file = Array.from(e.dataTransfer.files).find((f) => f.name.endsWith(".zip"));
+    if (file) validateFile(file);
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) validateFile(file);
+  };
+
+  // Compute diff for existing studies
+  const existingStudy = parsedStudy ? studies.find((s) => s.studyId === parsedStudy.studyId) : null;
+  const isUpdate = !!existingStudy;
 
   const handleUploadCsv = async () => {
     if (!csvFile) return;
@@ -232,40 +266,147 @@ export default function AdminPage() {
       {/* ── Import Study ── */}
       <section className="mb-8 rounded-lg border border-gray-200 p-6">
         <h2 className="text-lg font-medium text-heading mb-3">Import Study</h2>
-        <p className="text-sm text-body mb-3">
-          Upload a zip file containing the study directory (study.yaml + cohorts/ + content/ + files/).
-          If a study with the same <code className="bg-gray-100 px-1 rounded text-xs">id</code> already exists, its metadata and cohorts will be updated.
-          New cohorts are added, existing cohorts have their stages refreshed.
-        </p>
-        <div className="flex items-center gap-3">
-          <label className="rounded-[5px] border border-input-border px-4 py-2 text-sm font-medium text-heading cursor-pointer hover:bg-gray-50 transition-colors">
-            {importFile ? importFile.name : "Choose .zip file"}
-            <input
-              type="file"
-              accept=".zip"
-              onChange={(e) => setImportFile(e.target.files?.[0] ?? null)}
-              className="hidden"
-            />
-          </label>
-          <button
-            onClick={handlePreviewStudy}
-            disabled={!importFile || previewing || importing}
-            className="rounded-[5px] border border-input-border px-4 py-2 text-sm font-medium text-heading disabled:opacity-40 hover:bg-gray-50 transition-colors"
-          >
-            {previewing ? "Validating..." : "Validate & Preview"}
-          </button>
-          <button
-            onClick={handleImportStudy}
-            disabled={!importFile || importing || previewing}
-            className="rounded-[5px] bg-btn-active-bg px-4 py-2 text-sm font-medium text-btn-active-text disabled:bg-btn-inactive-bg disabled:text-btn-inactive-text"
-          >
-            {importing ? "Importing..." : "Import Study"}
-          </button>
-        </div>
-        {importStatus && (
-          <p className={`mt-3 text-sm whitespace-pre-wrap ${importStatus.startsWith("Error") ? "text-red-600" : "text-green-700"}`}>
-            {importStatus}
-          </p>
+
+        {/* Drop zone / idle state */}
+        {(importState === "idle" || importState === "error" || importState === "done") && (
+          <>
+            <div
+              onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={handleFileDrop}
+              className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer ${
+                dragOver ? "border-btn-active-bg bg-green-50" : "border-gray-300 hover:border-gray-400"
+              }`}
+              onClick={() => document.getElementById("import-file-input")?.click()}
+            >
+              <p className="text-sm text-gray-500">
+                Drop a <code className="bg-gray-100 px-1 rounded text-xs">.zip</code> file here or click to browse
+              </p>
+              <p className="text-xs text-gray-400 mt-1">study.yaml + cohorts/ + content/ + files/</p>
+              <input
+                id="import-file-input"
+                type="file"
+                accept=".zip"
+                onChange={handleFileSelect}
+                className="hidden"
+              />
+            </div>
+            {importState === "error" && (
+              <p className="mt-3 text-sm text-red-600 whitespace-pre-wrap">{importError}</p>
+            )}
+            {importState === "done" && (
+              <p className="mt-3 text-sm text-green-700">{importResult}</p>
+            )}
+          </>
+        )}
+
+        {/* Validating */}
+        {importState === "validating" && (
+          <div className="py-6 text-center">
+            <p className="text-sm text-gray-500">Validating {importFile?.name}...</p>
+          </div>
+        )}
+
+        {/* Validated — show summary + diff */}
+        {importState === "validated" && parsedStudy && (
+          <div className="space-y-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm font-medium text-heading">
+                  {isUpdate ? "Update existing study" : "New study"}:{" "}
+                  &ldquo;{parsedStudy.title}&rdquo;
+                </p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  <code className="font-mono bg-gray-100 px-1 rounded">{parsedStudy.studyId}</code>
+                  {" "}&middot; {parsedStudy.cohorts.length} cohorts &middot; from {importFile?.name}
+                </p>
+              </div>
+              <button onClick={resetImport} className="text-xs text-gray-400 hover:text-heading">&times; Clear</button>
+            </div>
+
+            {/* Cohort summary / diff */}
+            <div className="bg-gray-50 rounded-[5px] border border-gray-200 p-4 text-sm space-y-1">
+              {parsedStudy.cohorts.map((c) => {
+                const existingCohort = existingStudy?.cohorts.find((ec) => ec.cohortId === c.cohortId);
+                const isNew = isUpdate && !existingCohort;
+                const stageCountChanged = existingCohort && existingCohort.stageCount !== c.stages.length;
+                return (
+                  <div key={c.cohortId} className="flex items-center gap-2">
+                    {isNew && <span className="text-green-600 text-xs font-medium">+ new</span>}
+                    {stageCountChanged && <span className="text-amber-600 text-xs font-medium">~ changed</span>}
+                    {existingCohort && !stageCountChanged && <span className="text-gray-400 text-xs">unchanged</span>}
+                    {!isUpdate && <span className="text-gray-400 text-xs">&bull;</span>}
+                    <code className="font-mono text-xs bg-white px-1 rounded">{c.cohortId}</code>
+                    <span className="text-body">{c.label}</span>
+                    <span className="text-gray-400">
+                      ({c.stages.length} stages{stageCountChanged ? `, was ${existingCohort!.stageCount}` : ""})
+                    </span>
+                  </div>
+                );
+              })}
+              {/* Cohorts in DB but not in the uploaded study */}
+              {isUpdate && existingStudy!.cohorts
+                .filter((ec) => !parsedStudy.cohorts.find((c) => c.cohortId === ec.cohortId))
+                .map((ec) => (
+                  <div key={ec.cohortId} className="flex items-center gap-2 opacity-50">
+                    <span className="text-gray-400 text-xs">kept</span>
+                    <code className="font-mono text-xs bg-white px-1 rounded">{ec.cohortId}</code>
+                    <span className="text-body">{ec.label}</span>
+                    <span className="text-gray-400">(not in upload, won&apos;t be deleted)</span>
+                  </div>
+                ))}
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handlePreviewStudy}
+                className="rounded-[5px] border border-input-border px-4 py-2 text-sm font-medium text-heading hover:bg-gray-50 transition-colors"
+              >
+                Preview
+              </button>
+              <button
+                onClick={() => isUpdate ? setImportState("confirming") : handleImportStudy()}
+                className="rounded-[5px] bg-btn-active-bg px-4 py-2 text-sm font-medium text-btn-active-text"
+              >
+                {isUpdate ? "Update Study" : "Import Study"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Confirmation step for updates */}
+        {importState === "confirming" && parsedStudy && (
+          <div className="space-y-4">
+            <div className="bg-amber-50 border border-amber-200 rounded-[5px] p-4">
+              <p className="text-sm text-amber-800 font-medium">Are you sure?</p>
+              <p className="text-sm text-amber-700 mt-1">
+                This will overwrite all stages for {parsedStudy.cohorts.length} cohorts in &ldquo;{parsedStudy.title}&rdquo;.
+                Existing participant progress and chat logs are preserved.
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setImportState("validated")}
+                className="rounded-[5px] border border-input-border px-4 py-2 text-sm font-medium text-heading hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleImportStudy}
+                className="rounded-[5px] bg-red-600 px-4 py-2 text-sm font-medium text-white"
+              >
+                Yes, update study
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Importing */}
+        {importState === "importing" && (
+          <div className="py-6 text-center">
+            <p className="text-sm text-gray-500">Importing...</p>
+          </div>
         )}
       </section>
 
