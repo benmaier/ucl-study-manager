@@ -1,236 +1,199 @@
 # UCL Study Manager
 
-A web application for running timed research studies with optional LLM chatbot access. Researchers define studies using YAML files, assign participants to experimental cohorts, and collect structured data (stage progress, text responses, and full chat transcripts).
+A web application for running timed research studies with optional LLM chatbot access. Researchers define studies using YAML files, manage participants via an admin panel, and collect structured data (stage progress, text responses, and full chat transcripts).
 
 Built with Next.js, Prisma, and PostgreSQL. Deployed on Vercel with Neon.
 
-## How it works
-
-1. **Researchers** define a study as a set of YAML files (study definition, cohorts, stage flows, markdown content, task files).
-2. The study is **imported** into a PostgreSQL database via CLI.
-3. A **session** is created for a particular run of the study.
-4. **Participants** are generated with unique credentials and assigned to cohorts.
-5. Participants **log in** via a web browser, and are guided through timed stages.
-6. Some cohorts get access to an **AI chatbot** (Claude, OpenAI, or Gemini) during certain stages.
-7. All data (progress, responses, chat logs) is stored in the database and can be **exported** via CLI.
-
 ## Table of contents
 
-- [Study setup](#study-setup)
+- [Quick start](#quick-start)
+- [Study format](#study-format)
   - [Directory structure](#directory-structure)
   - [study.yaml](#studyyaml)
   - [Cohort YAML](#cohort-yaml)
-  - [Flow YAML](#flow-yaml)
+  - [Override semantics](#override-semantics)
+  - [Stage field reference](#stage-field-reference)
   - [Markdown content](#markdown-content)
-  - [Task files](#task-files)
   - [Template variables](#template-variables)
-- [CLI reference](#cli-reference)
+- [Admin panel](#admin-panel)
   - [Import a study](#import-a-study)
-  - [Create a session](#create-a-session)
-  - [Generate participants](#generate-participants)
-  - [Add API keys](#add-api-keys)
-  - [Export results](#export-results)
+  - [Upload participants CSV](#upload-participants-csv)
+  - [Generate test user](#generate-test-user)
+  - [Preview](#preview)
+  - [Deactivate studies](#deactivate-studies)
+- [CLI tools](#cli-tools)
 - [Participant experience](#participant-experience)
 - [API key pool](#api-key-pool)
-- [Supported providers and models](#supported-providers-and-models)
 - [Local development](#local-development)
-- [Deployment](#deployment)
+- [Deployment to Vercel](#deployment-to-vercel)
 
 ---
 
-## Study setup
+## Quick start
+
+1. **Create a study** — write YAML files defining your stages and cohorts (see [Study format](#study-format) and `studies/example/` for a fully commented example)
+2. **Import it** — zip the study folder and upload via the [admin panel](#admin-panel), or use the CLI
+3. **Create participants** — upload a CSV or generate test users via the admin panel
+4. **Run the study** — participants log in at the app URL with their credentials
+5. **Export data** — use the CLI to export progress, responses, and chat logs
+
+---
+
+## Study format
 
 ### Directory structure
 
-A study is defined as a directory with a fixed structure:
-
 ```
 my_study/
-├── study.yaml              # Entry point
-├── cohorts/
-│   ├── ai_trained.yaml     # One file per cohort
-│   └── no_ai.yaml
-├── flows/
-│   ├── with_training.yaml  # Stage sequences (can be shared across cohorts)
-│   └── standard.yaml
-├── content/
-│   ├── intro.md            # Markdown shown to participants during stages
-│   ├── task1.md
-│   └── survey.md
-└── files/
-    ├── data.csv            # Downloadable task files
-    └── template.py
+├── study.yaml          # Entry point: study metadata + base stages
+├── cohorts/            # One .yaml per experimental condition (auto-discovered)
+│   ├── control.yaml
+│   └── treatment.yaml
+├── content/            # Markdown files rendered to participants
+│   ├── intro.md
+│   └── task.md
+└── files/              # Downloadable data files
+    └── data.csv
 ```
 
 ### study.yaml
 
-The entry point. Defines the study title and lists all cohorts.
+The entry point. Defines the study ID, title, and the **base flow** of stages that all cohorts inherit.
 
 ```yaml
-title: "Code Assistance Study"
-description: "Comparing LLM-assisted coding across providers"
+id: ai_decision_making
+title: "AI-Assisted Decision Making Study"
+description: "2x2 design comparing AI access and training"
 
-fallback:
-  provider: openai
-  model: gpt-4o
-
-cohorts:
-  - cohorts/ai_trained.yaml
-  - cohorts/ai_untrained.yaml
-  - cohorts/no_ai_trained.yaml
-  - cohorts/no_ai_untrained.yaml
-```
-
-| Field | Required | Description |
-|-------|----------|-------------|
-| `title` | Yes | Study name |
-| `description` | No | Study description |
-| `fallback` | No | Global fallback `{provider, model}` if a cohort's primary provider fails |
-| `cohorts` | Yes | List of relative paths to cohort YAML files |
-
-### Cohort YAML
-
-Each cohort is an experimental condition. It defines whether participants get AI access and which LLM provider/model to use.
-
-**With AI access:**
-
-```yaml
-id: ai_trained
-label: "AI Access + AI Training"
-ai_access: true
-ai_training: true
-provider: anthropic
-model: claude-sonnet-4-20250514
-fallback:
-  provider: openai
-  model: gpt-4o
-study_flow: flows/with_training.yaml
-```
-
-**Without AI access:**
-
-```yaml
-id: no_ai_untrained
-label: "No AI + No Training"
-ai_access: false
-ai_training: false
-study_flow: flows/standard.yaml
-```
-
-| Field | Required | Description |
-|-------|----------|-------------|
-| `id` | Yes | Unique cohort identifier (used in CLI commands) |
-| `label` | Yes | Human-readable name |
-| `ai_access` | Yes | `true`/`false` -- whether participants see the chatbot |
-| `ai_training` | Yes | `true`/`false` -- metadata flag for experimental design |
-| `provider` | If `ai_access: true` | `anthropic`, `openai`, or `gemini` |
-| `model` | If `ai_access: true` | Model ID (e.g. `claude-sonnet-4-20250514`, `gpt-4o`, `gemini-2.5-flash`) |
-| `fallback` | No | Per-cohort fallback `{provider, model}` |
-| `study_flow` | Yes | Relative path to the flow YAML for this cohort |
-
-Cohorts with `ai_access: false` must **not** have `provider` or `model` set.
-
-Multiple cohorts can share the same `study_flow`.
-
-### Flow YAML
-
-Defines the ordered sequence of stages a cohort goes through. This is the core of the study design.
-
-```yaml
 stages:
   - id: intro
     title: "Welcome & Instructions"
-    duration: "10:00"
+    duration: "5:00"
     content: content/intro.md
     confirmation: "I confirm I have read and understood the instructions."
-
-  - id: ai_training
-    title: "AI Tool Training"
-    duration: "15:00"
-    content: content/ai_training.md
-    chatbot: true
 
   - id: task1
     title: "Data Analysis Task"
     duration: "30:00"
     content: content/task1.md
-    chatbot: true
     files:
       - filename: files/data.csv
-        description: "Student enrollment and complaint data."
-      - filename: files/template.py
-        description: "Python template with analysis functions."
+        description: "Student enrollment data."
     questions:
       - "Which files are relevant?"
       - "Did complaints decrease after the campaign?"
-      - "Was the campaign successful?"
     input:
-      label: "Your result"
-      prompt: "Explain why you reached these conclusions."
+      label: "Your analysis"
+      prompt: "Explain your findings."
     confirmation: "I confirm this is my final answer."
 
-  - id: survey
-    title: "Post-Study Survey"
-    duration: "10:00"
-    content: content/survey.md
-    link:
-      label: "Open the survey"
-      url: "https://example.com/survey"
-    confirmation: "I confirm I completed the survey."
+  - id: end
+    title: "Thank You"
+    duration: "2:00"
+    content: content/end.md
 ```
-
-#### Stage field reference
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `id` | Yes | Unique stage identifier within this flow |
-| `title` | Yes | Stage title shown to participant |
-| `duration` | Yes | Duration as `"MM:SS"` string. Timer counts down from this. |
-| `content` | No | Relative path to a markdown file rendered as stage content |
-| `chatbot` | No | `true` to enable chatbot (only shown if cohort has `ai_access: true`). Default: `false` |
-| `files` | No | List of `{filename, description}` -- downloadable task files |
-| `questions` | No | List of sub-questions displayed in the task section |
-| `input` | No | Text input config: `{label, prompt?}`. Adds a textarea with auto-save. |
-| `link` | No | External link: `{label, url}`. Opens in a new tab. |
-| `confirmation` | No | Confirmation checkbox text. Must be checked before submit. |
+| `id` | Yes | Unique study identifier (used in CSV imports and admin panel) |
+| `title` | Yes | Study name |
+| `description` | No | Study description |
+| `stages` | Yes | Base flow: ordered list of stages all cohorts inherit |
 
-#### Stage behavior
+Cohort files are **auto-discovered** from the `cohorts/` subdirectory — no need to list them.
 
-- The **timer** starts counting down when the participant enters the stage.
-- The **submit button** is disabled until the timer expires.
-- If `confirmation` is set, the button stays disabled until the checkbox is also checked.
-- If `input` is set, the text is **auto-saved** every 2 seconds while typing.
-- If `chatbot: true` and the cohort has `ai_access: true`, an "Open AI Assistant" button appears that opens the chat in a new tab.
-- If `link` is set, a clickable link is shown.
+### Cohort YAML
+
+Each `.yaml` file in `cohorts/` defines an experimental condition. Cohorts inherit all base stages and only declare what's **different**.
+
+**Cohort with AI chatbot + extra training stage:**
+
+```yaml
+id: gemini_trained
+label: "Gemini + AI Training"
+provider: gemini
+model: gemini-2.5-flash
+fallback:
+  provider: anthropic
+  model: claude-haiku-4-5-20251001
+
+stages:
+  # ADD a new stage after "intro"
+  - id: ai_training
+    title: "AI Tool Training"
+    duration: "10:00"
+    content: content/ai_training.md
+    chatbot: true
+    after: intro
+
+  # OVERRIDE: enable chatbot on existing task stage
+  - id: task1
+    chatbot: true
+    sidebar_panels:
+      - title: "Scenario"
+        content: "You are assisting a professor..."
+```
+
+**Control cohort (no changes):**
+
+```yaml
+id: control
+label: "Control Group"
+```
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `id` | Yes | Unique cohort identifier |
+| `label` | Yes | Human-readable name |
+| `provider` | If any stage has `chatbot: true` | LLM provider: `anthropic`, `openai`, `gemini` |
+| `model` | If provider is set | Model ID (e.g. `gemini-2.5-flash`) |
+| `fallback` | No | Fallback `{provider, model}` if primary fails |
+| `stages` | No | List of stage overrides, additions, or skips |
+
+### Override semantics
+
+| Operation | How | Rules |
+|-----------|-----|-------|
+| **Override** | Use the same `id` as a base stage | Only specified fields change. Omitted fields are inherited. |
+| **Add** | Use a new `id` | Must have `after: <stage_id>` or `before: <stage_id>`, plus `title` and `duration`. |
+| **Skip** | Set `skip: true` on a base stage `id` | Removes the stage from this cohort's flow. |
+
+- Field values **replace entirely** (no deep merge for arrays/objects).
+- Set a field to `null` (YAML `~`) to explicitly remove it from the base.
+- Stages can override the cohort's default `provider`/`model` with their own.
+
+See `studies/example/` for a fully commented example with 4 cohorts demonstrating all override types.
+
+### Stage field reference
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `id` | Yes | Unique stage identifier |
+| `title` | Yes | Shown as page heading |
+| `duration` | Yes | Timer duration as `"MM:SS"` |
+| `content` | No | Relative path to markdown file |
+| `chatbot` | No | `true` to show AI assistant button. Default: `false` |
+| `provider` | No | Stage-level LLM provider override |
+| `model` | No | Stage-level model override |
+| `files` | No | List of `{filename, description}` — downloadable files |
+| `questions` | No | Sub-questions displayed before the input field |
+| `input` | No | Text input: `{label, prompt?}`. Adds a textarea with auto-save. |
+| `link` | No | External link: `{label, url}`. Opens in new tab. |
+| `confirmation` | No | Checkbox text. Must be checked before submit. |
+| `sidebar_panels` | No | Chat sidebar panels: `[{title, content, defaultExpanded?}]` |
+| `skip` | No | `true` to remove this stage (cohort overrides only) |
+| `after` | No | Insert after this stage ID (new stages only) |
+| `before` | No | Insert before this stage ID (new stages only) |
 
 ### Markdown content
 
-Markdown files in `content/` are rendered to participants during stages. They support standard Markdown plus GitHub Flavored Markdown (tables, strikethrough, etc.).
+Markdown files in `content/` support standard Markdown plus GitHub Flavored Markdown (tables, strikethrough, etc.). The first `# H1` heading is hidden (the stage title is already shown).
 
-The first `# H1` heading is hidden (the stage title is already shown). Use `## H2` for sections.
-
-```markdown
-# Data Analysis Task
-
-## Scenario
-
-You are assisting a professor in evaluating the outcome of an
-anti-discrimination campaign across schools in the US.
-
-## Your Task
-
-Analyze the provided data files and answer the questions below.
-```
-
-### Task files
-
-Files in `files/` are made available for download during the stage. Each file is SHA-256 hashed at import time for deduplication in chat logs (if a participant uploads a known task file to the chatbot, only the filename reference is stored, not the full file).
+Use `<AI_ASSISTANT_BUTTON>` in the markdown to control where the chatbot button appears. If not present, the button renders at the top of the page.
 
 ### Template variables
 
-You can use `<USER_ID>` anywhere in markdown content, link URLs, or other stage config strings. It will be replaced with the participant's identifier (e.g. `ranch-coral-ivory`) at render time.
-
-This is useful for linking to external apps that need to identify the participant:
+`<USER_ID>` is replaced with the participant's identifier at runtime — in markdown content, link URLs, and all stage config strings.
 
 ```yaml
 link:
@@ -240,196 +203,149 @@ link:
 
 ---
 
-## CLI reference
+## Admin panel
 
-All CLI commands require `DATABASE_URL` to be set in `.env`.
+The admin panel is at `/admin` (password-protected). It provides a web interface for all study management tasks.
 
 ### Import a study
 
-Validates the YAML hierarchy and imports everything into the database.
+Drag-and-drop a `.zip` file or study folder onto the drop zone (or click to browse). The study is **validated automatically** — you'll see:
+
+- A summary of all cohorts and their stage counts
+- Whether this is a **new study** or an **update** to an existing one
+- For updates: a diff showing new, changed, and unchanged cohorts
+
+You can **Preview** the participant experience before importing. Updates require an explicit confirmation step.
+
+### Upload participants CSV
+
+Drag-and-drop a `.csv` file. Format:
+
+```
+user,password,study_id,cohort_id
+alice-beta-gamma,correct-horse-battery-staple-extra-word,ai_decision_making,gemini_trained
+```
+
+The file is validated automatically — the system checks that each study/cohort exists and flags conflicts:
+
+- **New participant** — will be created
+- **Existing, same cohort** — password will be updated
+- **Existing, different cohort** — will be reassigned (old data preserved)
+- **Error** — missing study/cohort, empty fields
+
+Only after reviewing the validation results can you commit the changes.
+
+### Generate test user
+
+Select a study and cohort, click "Generate". Creates a test user with a random 3-word username and 6-word password (shown once — save it). Test users can skip timers and reset their progress.
+
+### Preview
+
+Each cohort in the "Studies & Cohorts" section has a **Preview** link that opens the full participant view in a new tab — browse all stages without logging in as a participant.
+
+### Deactivate studies
+
+Click "Deactivate" on a study to hide it from the active list and dropdowns. Deactivated studies appear in a collapsed section at the bottom and can be re-activated.
+
+---
+
+## CLI tools
+
+All CLI commands require `DATABASE_URL` in `.env`.
+
+### Import a study
 
 ```bash
 npx tsx cli/import-study.ts studies/my_study/
 ```
 
-This is **idempotent** -- running it again updates the existing study. Cohorts no longer referenced in `study.yaml` are removed. Stages are recreated on each import.
+### Validate a study (with interactive preview)
 
-The command outputs the study's database ID, which you need for the next step.
+```bash
+npx tsx cli/validate-study.ts studies/my_study/
+```
+
+Validates the YAML and opens an interactive terminal preview where you can browse cohorts and stages.
 
 ### Create a session
 
-A session represents one run of a study. You can run the same study multiple times with different participant groups.
-
 ```bash
-npx tsx cli/create-session.ts <study-id> [--label "March 2026 Run"]
-```
-
-Example:
-
-```bash
-npx tsx cli/create-session.ts 1 --label "Pilot run"
-# Output: Created session 1 for study "Code Assistance Study"
+npx tsx cli/create-session.ts <study-db-id> [--label "March 2026"]
 ```
 
 ### Generate participants
-
-Creates participants with unique 3-word identifiers and 6-word passwords, assigned to a specific cohort.
 
 ```bash
 npx tsx cli/generate-participants.ts <session-id> --count <N> --cohort <cohort-id> [--test]
 ```
 
-- `--cohort` uses the cohort's `id` from the YAML (e.g. `ai_trained`), not the database ID.
-- `--test` marks participants as test users (gives them a "skip timer" button and a "reset" button).
-- Max 1000 participants per command.
-
-Example:
-
-```bash
-npx tsx cli/generate-participants.ts 1 --count 20 --cohort ai_trained
-npx tsx cli/generate-participants.ts 1 --count 20 --cohort no_ai_untrained
-npx tsx cli/generate-participants.ts 1 --count 2 --cohort ai_trained --test
-```
-
-Output:
-
-```
-Generated 20 participants for session 1, cohort "ai_trained":
-──────────────────────────────────────────────────────────────
-  Username (identifier)       | Password
-──────────────────────────────────────────────────────────────
-  table-coast-valve            | knack-sugar-stern-steel-vivid-lotus
-  ranch-coral-ivory            | sunny-llama-robot-pulse-magic-haven
-  ...
-```
-
-Save this output -- the passwords are hashed with bcrypt and cannot be recovered.
+Save the output — passwords are hashed and cannot be recovered.
 
 ### Add API keys
 
-API keys for LLM providers are stored in a database key pool. Keys are assigned to cohorts and load-balanced across participants.
-
-First, set up the key pool tables (only needed once after a fresh database):
-
 ```bash
+# Set up key pool tables (first time only)
 npx tsx cli/run-sql.ts sql/setup.sql
+
+# Add a key (global, available to all cohorts)
+npx tsx cli/add-api-key.ts anthropic sk-ant-api03-...
+
+# Add a key for specific cohorts (by numeric DB ID)
+npx tsx cli/add-api-key.ts gemini AIzaSy... 5 6
 ```
-
-Then add keys:
-
-```bash
-npx tsx cli/add-api-key.ts <provider> <api-key> <cohort-db-id> [cohort-db-id ...]
-```
-
-- `provider`: `anthropic`, `openai`, or `gemini`
-- `cohort-db-id`: The **numeric database ID** of the cohort (not the YAML id). Find it with `npx prisma studio`.
-
-Example:
-
-```bash
-# Add an Anthropic key for cohorts with DB IDs 5 and 6
-npx tsx cli/add-api-key.ts anthropic sk-ant-api03-... 5 6
-
-# Add a Gemini key for cohort 5
-npx tsx cli/add-api-key.ts gemini AIzaSy... 5
-```
-
-You can add multiple keys per provider per cohort for load balancing. The system automatically assigns the least-used key to each participant.
 
 ### Export results
-
-Exports all data for a session: participant overview, stage progress with timestamps, chat transcripts, and uploaded files.
 
 ```bash
 npx tsx cli/export-results.ts <session-id> [--output-dir ./exports]
 ```
 
-Example:
-
-```bash
-npx tsx cli/export-results.ts 1 --output-dir ./exports/pilot
-```
-
-Output files:
-
-| File | Contents |
-|------|----------|
-| `session.json` | Session metadata (study title, participant count, creation date) |
-| `participants.json` | Per-participant overview (identifier, cohort, stages completed, chat turn count) |
-| `progress.json` | All stage progress records (start/completion times, duration in ms) |
-| `progress.csv` | Same as above in CSV format for spreadsheet/stats tools |
-| `chat-logs.json` | All chat turns (role, content, provider, model, token counts, file references) |
-| `files/` | Unknown files uploaded during chat (base64-decoded), organized by participant and stage |
-
-The `progress.json` and `progress.csv` include computed `durationMs` for each completed stage. The `chat-logs.json` includes token counts for cost analysis.
+Exports: session metadata, participant overview, stage progress (JSON + CSV), chat transcripts, and uploaded files.
 
 ---
 
 ## Participant experience
 
-1. Participant opens the app URL in a browser.
-2. Enters their 3-word identifier and 6-word password.
-3. Sees the study view:
-   - **Left sidebar**: Schedule showing all stages with progress indicators.
-   - **Right area**: Current stage content, files, questions, input field, chatbot button, submit.
-4. Timer counts down. Submit button activates when the timer expires (and confirmation checkbox is checked, if applicable).
-5. Text input is auto-saved every 2 seconds.
-6. On chatbot stages, "Open AI Assistant" opens a chat in a new tab. The chat automatically becomes unavailable when the participant moves to a non-chatbot stage.
-7. After completing all stages, a "Thank you" screen is shown.
+1. Open the app URL in a browser
+2. Enter 3-word username and 6-word password
+3. The study view shows a **schedule sidebar** (left) and **content area** (right)
+4. Timer counts down per stage. Submit button activates when timer expires and confirmation checkbox is checked
+5. Text input auto-saves every 2 seconds
+6. On chatbot stages, "Open AI Assistant" opens a chat in a new tab
+7. After all stages, the participant is logged out
 
-**Test users** additionally see:
-- A "Next (skip timer)" button to advance without waiting.
-- A "Reset this user" button on the completion screen to start over.
+**Test users** additionally see a "Next (skip timer)" button and a logout/reset option.
 
 ---
 
 ## API key pool
 
-API keys are managed in the database, not in environment variables. This allows:
+API keys are stored in the database (not environment variables), enabling:
 
-- Multiple keys per provider for load balancing and rate limit distribution.
-- Per-cohort key assignment (different cohorts can use different providers).
-- Automatic least-used key selection per participant.
+- Multiple keys per provider for load balancing
+- Per-cohort key assignment or global pool
+- Automatic least-used key selection
 
-The key pool uses a PostgreSQL `SECURITY DEFINER` function (`assign_api_key`) that:
-1. Looks up the participant's cohort.
-2. Finds the least-used active key for the requested provider in that cohort's pool.
-3. Increments the usage counter and logs the assignment.
-4. Returns the API key.
+The key pool uses a PostgreSQL `SECURITY DEFINER` function. If no cohort-specific key exists, it falls back to the global pool.
 
-Set up the key pool tables after any fresh database:
+Set up after a fresh database:
 
 ```bash
 npx tsx cli/run-sql.ts sql/setup.sql
 ```
-
----
-
-## Supported providers and models
-
-| Provider | Provider string | Example models |
-|----------|----------------|----------------|
-| Anthropic | `anthropic` | `claude-sonnet-4-20250514`, `claude-opus-4-20250514` |
-| OpenAI | `openai` | `gpt-4o`, `gpt-4.1` |
-| Google Gemini | `gemini` | `gemini-2.5-flash`, `gemini-2.5-pro` |
-
-All providers support code execution in chat (Python for OpenAI/Gemini, Bash for Anthropic).
-
-See [docs/supported-models.md](docs/supported-models.md) for detailed provider comparison including code execution capabilities and pricing.
 
 ---
 
 ## Local development
 
 ```bash
-# Install dependencies
 npm install
 
 # Set up environment
 cp .env.example .env
 # Edit .env with your DATABASE_URL
 
-# Push Prisma schema to database
+# Push schema to database
 npx prisma db push
 
 # Set up key pool tables
@@ -439,44 +355,55 @@ npx tsx cli/run-sql.ts sql/setup.sql
 npm run dev
 ```
 
-The app runs at `http://localhost:3000`.
-
-Use `npx prisma studio` to browse the database.
+The app runs at `http://localhost:3000`. Use `npx prisma studio` to browse the database.
 
 ---
 
-## Deployment
+## Deployment to Vercel
 
-See [docs/deployment.md](docs/deployment.md) for a complete guide to deploying on Vercel with Neon PostgreSQL.
+### Prerequisites
 
----
+- A Vercel account with the project linked
+- A Neon PostgreSQL database (or any PostgreSQL provider)
 
-## Complete workflow example
+### Environment variables
+
+Set these in the Vercel dashboard (Settings → Environment Variables):
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `DATABASE_URL` | Yes | PostgreSQL connection string (auto-set by Neon integration) |
+| `ADMIN_PASSWORD` | Yes | Password for the `/admin` panel |
+| `GOOGLE_API_KEY` | If using Gemini | Google AI API key |
+| `ANTHROPIC_API_KEY` | If using Anthropic | Anthropic API key |
+
+### Deploy
 
 ```bash
-# 1. Import your study
-npx tsx cli/import-study.ts studies/my_study/
-# → Study ID: 1
+# Preview deploy
+vercel deploy
 
-# 2. Create a session
-npx tsx cli/create-session.ts 1 --label "March 2026"
-# → Session ID: 1
+# Production deploy
+vercel deploy --prod
+```
 
-# 3. Generate participants for each cohort
-npx tsx cli/generate-participants.ts 1 --count 25 --cohort ai_trained
-npx tsx cli/generate-participants.ts 1 --count 25 --cohort ai_untrained
-npx tsx cli/generate-participants.ts 1 --count 25 --cohort no_ai_trained
-npx tsx cli/generate-participants.ts 1 --count 25 --cohort no_ai_untrained
+### After deployment
 
-# 4. Set up key pool (first time only)
+```bash
+# Push schema (if changed)
+npx prisma db push
+
+# Set up key pool tables (first time or after schema changes with --accept-data-loss)
 npx tsx cli/run-sql.ts sql/setup.sql
 
-# 5. Add API keys (use numeric cohort DB IDs from prisma studio)
-npx tsx cli/add-api-key.ts anthropic sk-ant-... 5 6
+# Add API keys
+npx tsx cli/add-api-key.ts anthropic sk-ant-...
+npx tsx cli/add-api-key.ts gemini AIzaSy...
 
-# 6. Distribute credentials to participants
-#    (save the output from step 3)
-
-# 7. After the study, export data
-npx tsx cli/export-results.ts 1 --output-dir ./exports/march-2026
+# Import a study
+npx tsx cli/import-study.ts studies/example/
 ```
+
+### Known issue
+
+GET route handlers in Next.js App Router can silently return 404 on Vercel. All API routes in this project use POST to work around this. If adding new routes, use POST.
