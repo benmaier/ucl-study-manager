@@ -15,6 +15,7 @@ interface StudyInfo {
   id: number;
   studyId: string;
   title: string;
+  isHidden: boolean;
   cohorts: CohortInfo[];
   sessions: { id: number; label: string | null; createdAt: string }[];
 }
@@ -326,7 +327,7 @@ export default function AdminPage() {
             className="rounded-[5px] border border-input-border px-3 py-2 text-sm outline-none"
           >
             <option value="">Select study...</option>
-            {studies.map((s) => (
+            {studies.filter((s) => !s.isHidden).map((s) => (
               <option key={s.id} value={s.id}>{s.title}</option>
             ))}
           </select>
@@ -365,16 +366,26 @@ export default function AdminPage() {
       {/* ── Studies & Cohorts ── */}
       <section className="rounded-lg border border-gray-200 p-6">
         <h2 className="text-lg font-medium text-heading mb-3">Studies & Cohorts</h2>
-        {studies.length === 0 && <p className="text-sm text-gray-500">No studies imported yet.</p>}
-        {studies.map((s) => (
+        {studies.filter((s) => !s.isHidden).length === 0 && <p className="text-sm text-gray-500">No active studies.</p>}
+        {studies.filter((s) => !s.isHidden).map((s) => (
           <div key={s.id} className="mb-4 last:mb-0">
-            <p className="text-sm font-medium text-heading">
-              {s.title} <span className="text-gray-400 font-normal">({s.studyId})</span>
+            <p className="text-sm font-medium text-heading flex items-center gap-2">
+              {s.title} <code className="font-mono text-xs bg-gray-100 px-1 rounded font-normal text-gray-500">{s.studyId}</code>
+              <button
+                onClick={async () => {
+                  await fetch("/api/admin/list-studies", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "toggle-hide", studyId: s.id }) });
+                  fetchStudies();
+                }}
+                className="text-xs text-gray-400 hover:text-red-500 ml-auto"
+              >
+                Deactivate
+              </button>
             </p>
             <div className="ml-4 mt-1 space-y-0.5">
               {s.cohorts.map((c) => (
                 <p key={c.cohortId} className="text-sm text-body">
-                  {c.cohortId} — {c.label} ({c.stageCount} stages{c.provider ? `, ${c.provider} ${c.model}` : ""}){" "}
+                  <code className="font-mono text-xs bg-gray-100 px-1 rounded">{c.cohortId}</code>{" "}
+                  {c.label} ({c.stageCount} stages{c.provider ? `, ${c.provider} ${c.model}` : ""}){" "}
                   <a
                     href={`/admin/preview?studyId=${s.id}&cohortId=${c.cohortId}`}
                     target="_blank"
@@ -387,6 +398,40 @@ export default function AdminPage() {
             </div>
           </div>
         ))}
+
+        {/* Deactivated studies (collapsed) */}
+        {studies.filter((s) => s.isHidden).length > 0 && (
+          <details className="mt-6">
+            <summary className="text-sm text-gray-400 cursor-pointer hover:text-gray-600">
+              Deactivated studies ({studies.filter((s) => s.isHidden).length})
+            </summary>
+            <div className="mt-2 space-y-3 opacity-60">
+              {studies.filter((s) => s.isHidden).map((s) => (
+                <div key={s.id}>
+                  <p className="text-sm text-gray-500 flex items-center gap-2">
+                    {s.title} <code className="font-mono text-xs bg-gray-100 px-1 rounded">{s.studyId}</code>
+                    <button
+                      onClick={async () => {
+                        await fetch("/api/admin/list-studies", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "toggle-hide", studyId: s.id }) });
+                        fetchStudies();
+                      }}
+                      className="text-xs text-gray-400 hover:text-green-600 ml-auto"
+                    >
+                      Activate
+                    </button>
+                  </p>
+                  <div className="ml-4 mt-1 space-y-0.5">
+                    {s.cohorts.map((c) => (
+                      <p key={c.cohortId} className="text-sm text-gray-400">
+                        <code className="font-mono text-xs">{c.cohortId}</code> {c.label} ({c.stageCount} stages)
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </details>
+        )}
       </section>
     </main>
   );

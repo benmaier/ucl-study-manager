@@ -13,6 +13,7 @@ model Study {
   title       String
   description String?
   sourceDir   String?   @map("source_dir")
+  isHidden    Boolean   @default(false) @map("is_hidden")
   createdAt   DateTime  @default(now()) @map("created_at")
 
   cohorts  Cohort[]

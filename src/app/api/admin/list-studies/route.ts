@@ -7,9 +7,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = await request.json().catch(() => ({})) as Record<string, string>;
-  const previewStudyId = body.preview;
-  const previewCohortId = body.cohort;
+  const body = await request.json().catch(() => ({})) as Record<string, unknown>;
+
+  // Toggle study visibility
+  if (body.action === "toggle-hide" && typeof body.studyId === "number") {
+    const study = await prisma.study.findUnique({ where: { id: body.studyId } });
+    if (!study) return NextResponse.json({ error: "Study not found" }, { status: 404 });
+    await prisma.study.update({ where: { id: body.studyId }, data: { isHidden: !study.isHidden } });
+    return NextResponse.json({ ok: true, isHidden: !study.isHidden });
+  }
+
+  const previewStudyId = body.preview as string | undefined;
+  const previewCohortId = body.cohort as string | undefined;
 
   // DB-based preview: return full stage data for a single cohort
   if (previewStudyId && previewCohortId) {
@@ -99,6 +108,7 @@ export async function POST(request: NextRequest) {
       id: s.id,
       studyId: s.studyId,
       title: s.title,
+      isHidden: s.isHidden,
       cohorts: s.cohorts.map((c) => ({
         id: c.id,
         cohortId: c.cohortId,

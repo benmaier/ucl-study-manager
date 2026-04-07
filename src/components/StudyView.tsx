@@ -254,7 +254,7 @@ export default function StudyView({
   return (
     <div className="flex min-h-screen">
       {/* Schedule sidebar */}
-      <aside className="w-[260px] bg-study-sidebar-bg border-r border-gray-200 p-6 shrink-0 flex flex-col">
+      <aside className="w-[260px] bg-study-sidebar-bg border-r border-gray-200 p-6 shrink-0 flex flex-col sticky top-0 h-screen overflow-y-auto">
         <h2 className="text-lg font-normal text-heading mb-4">Schedule</h2>
         <div className="space-y-1.5 flex-1">
           {stages.map((stage, i) => {
