@@ -22,7 +22,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "CSV must have a header row and at least one data row." }, { status: 400 });
   }
 
-  // Parse header
   const header = lines[0].split(",").map((h) => h.trim().toLowerCase());
   const userIdx = header.indexOf("user");
   const passIdx = header.indexOf("password");
@@ -38,9 +37,10 @@ export async function POST(request: NextRequest) {
 
   const errors: string[] = [];
   let created = 0;
+  let updated = 0;
+  let reassigned = 0;
 
-  // Cache study/cohort/session lookups
-  const sessionCache = new Map<string, number>(); // studyId -> sessionId
+  const sessionCache = new Map<string, number>();
 
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i].trim();
@@ -57,26 +57,17 @@ export async function POST(request: NextRequest) {
       continue;
     }
 
-    // Find study by studyId string
     const study = await prisma.study.findFirst({ where: { studyId: studyIdentifier } });
     if (!study) {
       errors.push(`Row ${i + 1}: study "${studyIdentifier}" not found`);
       continue;
     }
 
-    // Find cohort
     const cohort = await prisma.cohort.findFirst({
       where: { studyId: study.id, cohortId: cohortIdentifier },
     });
     if (!cohort) {
       errors.push(`Row ${i + 1}: cohort "${cohortIdentifier}" not found in study "${studyIdentifier}"`);
-      continue;
-    }
-
-    // Check for duplicate identifier
-    const existing = await prisma.participant.findUnique({ where: { identifier: username } });
-    if (existing) {
-      errors.push(`Row ${i + 1}: identifier "${username}" already exists`);
       continue;
     }
 
@@ -96,20 +87,40 @@ export async function POST(request: NextRequest) {
       sessionCache.set(studyIdentifier, sessionId);
     }
 
-    // Create participant
     const hashed = await bcrypt.hash(password, 10);
-    await prisma.participant.create({
-      data: {
-        identifier: username,
-        dbUser: username,
-        dbPassword: hashed,
-        isTestUser: false,
-        sessionId,
-        cohortId: cohort.id,
-      },
-    });
-    created++;
+
+    // Check if participant already exists
+    const existing = await prisma.participant.findUnique({ where: { identifier: username } });
+
+    if (existing) {
+      // Update password and optionally reassign cohort/session
+      await prisma.participant.update({
+        where: { id: existing.id },
+        data: {
+          dbPassword: hashed,
+          cohortId: cohort.id,
+          sessionId,
+        },
+      });
+      if (existing.cohortId === cohort.id) {
+        updated++;
+      } else {
+        reassigned++;
+      }
+    } else {
+      await prisma.participant.create({
+        data: {
+          identifier: username,
+          dbUser: username,
+          dbPassword: hashed,
+          isTestUser: false,
+          sessionId,
+          cohortId: cohort.id,
+        },
+      });
+      created++;
+    }
   }
 
-  return NextResponse.json({ created, errors, total: lines.length - 1 });
+  return NextResponse.json({ created, updated, reassigned, errors, total: lines.length - 1 });
 }

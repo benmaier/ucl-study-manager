@@ -36,10 +36,13 @@ export default function AdminPage() {
   const [parsedStudy, setParsedStudy] = useState<{ studyId: string; title: string; description: string | null; cohorts: { cohortId: string; label: string; stages: { stageId: string }[] }[] } | null>(null);
   const [dragOver, setDragOver] = useState(false);
 
-  // CSV upload
+  // CSV upload — state machine: idle → validating → validated → uploading → done | error
+  const [csvState, setCsvState] = useState<"idle" | "validating" | "validated" | "uploading" | "done" | "error">("idle");
   const [csvFile, setCsvFile] = useState<File | null>(null);
-  const [csvStatus, setCsvStatus] = useState("");
-  const [uploading, setUploading] = useState(false);
+  const [csvError, setCsvError] = useState("");
+  const [csvResult, setCsvResult] = useState("");
+  const [csvDragOver, setCsvDragOver] = useState(false);
+  const [csvRows, setCsvRows] = useState<{ row: number; user: string; studyId: string; cohortId: string; status: string; message: string }[]>([]);
 
   // Generate test user
   const [selectedStudyId, setSelectedStudyId] = useState<number | null>(null);
@@ -169,30 +172,75 @@ export default function AdminPage() {
   const existingStudy = parsedStudy ? studies.find((s) => s.studyId === parsedStudy.studyId) : null;
   const isUpdate = !!existingStudy;
 
+  const validateCsv = async (file: File) => {
+    setCsvFile(file);
+    setCsvState("validating");
+    setCsvError("");
+    setCsvRows([]);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/admin/validate-participants", { method: "POST", body: formData });
+      const data = await res.json();
+      if (res.ok) {
+        setCsvRows(data.results);
+        setCsvState("validated");
+      } else {
+        setCsvError(data.error || "Validation failed.");
+        setCsvState("error");
+      }
+    } catch {
+      setCsvError("Failed to upload file.");
+      setCsvState("error");
+    }
+  };
+
   const handleUploadCsv = async () => {
     if (!csvFile) return;
-    setUploading(true);
-    setCsvStatus("");
+    setCsvState("uploading");
     try {
       const formData = new FormData();
       formData.append("file", csvFile);
       const res = await fetch("/api/admin/upload-participants", { method: "POST", body: formData });
       const data = await res.json();
       if (res.ok) {
-        let msg = `Created ${data.created} of ${data.total} participants.`;
-        if (data.errors?.length) {
-          msg += `\nErrors:\n${data.errors.join("\n")}`;
-        }
-        setCsvStatus(msg);
+        const parts = [];
+        if (data.created) parts.push(`${data.created} created`);
+        if (data.updated) parts.push(`${data.updated} password updated`);
+        if (data.reassigned) parts.push(`${data.reassigned} reassigned`);
+        if (data.errors?.length) parts.push(`${data.errors.length} errors`);
+        setCsvResult(parts.join(", ") || "No changes.");
+        setCsvState("done");
         setCsvFile(null);
+        setCsvRows([]);
       } else {
-        setCsvStatus(`Error: ${data.error}`);
+        setCsvError(data.error || "Upload failed.");
+        setCsvState("error");
       }
     } catch {
-      setCsvStatus("Error: Failed to upload.");
-    } finally {
-      setUploading(false);
+      setCsvError("Failed to upload file.");
+      setCsvState("error");
     }
+  };
+
+  const resetCsv = () => {
+    setCsvState("idle");
+    setCsvFile(null);
+    setCsvRows([]);
+    setCsvError("");
+    setCsvResult("");
+  };
+
+  const handleCsvDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setCsvDragOver(false);
+    const file = Array.from(e.dataTransfer.files).find((f) => f.name.endsWith(".csv"));
+    if (file) validateCsv(file);
+  };
+
+  const handleCsvSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) validateCsv(file);
   };
 
   const handleGenerateTestUser = async () => {
@@ -266,6 +314,10 @@ export default function AdminPage() {
       {/* ── Import Study ── */}
       <section className="mb-8 rounded-lg border border-gray-200 p-6">
         <h2 className="text-lg font-medium text-heading mb-3">Import Study</h2>
+        <p className="text-sm text-body mb-3">
+          Upload a zip containing the study directory (<code className="bg-gray-100 px-1 rounded text-xs">study.yaml</code> + <code className="bg-gray-100 px-1 rounded text-xs">cohorts/</code> + <code className="bg-gray-100 px-1 rounded text-xs">content/</code> + <code className="bg-gray-100 px-1 rounded text-xs">files/</code>).
+          The file will be validated automatically. If a study with the same ID already exists, you&apos;ll see a diff before confirming the update.
+        </p>
 
         {/* Drop zone / idle state */}
         {(importState === "idle" || importState === "error" || importState === "done") && (
@@ -413,39 +465,114 @@ export default function AdminPage() {
       {/* ── Upload Participants CSV ── */}
       <section className="mb-8 rounded-lg border border-gray-200 p-6">
         <h2 className="text-lg font-medium text-heading mb-3">Upload Participants CSV</h2>
-        <p className="text-sm text-body mb-1">
+        <p className="text-sm text-body mb-3">
           Bulk-create participants from a CSV file. Passwords are hashed before storage.
+          CSV format: <code className="bg-gray-100 px-1 rounded text-xs">user,password,study_id,cohort_id</code>.{" "}
+          <code className="bg-gray-100 px-1 rounded text-xs">study_id</code> and{" "}
+          <code className="bg-gray-100 px-1 rounded text-xs">cohort_id</code> must match existing studies and cohorts.
         </p>
-        <p className="text-sm text-body mb-1">
-          CSV format: <code className="bg-gray-100 px-1 rounded text-xs">user,password,study_id,cohort_id</code>
-        </p>
-        <p className="text-sm text-gray-500 mb-3">
-          <code className="bg-gray-100 px-1 rounded text-xs">study_id</code>{" "}is the study identifier from study.yaml (e.g. &quot;ai_decision_making&quot;).{" "}
-          <code className="bg-gray-100 px-1 rounded text-xs">cohort_id</code>{" "}is the cohort identifier from the cohort YAML (e.g. &quot;gemini_trained&quot;).
-          Rows with errors are skipped and reported — valid rows are still created.
-        </p>
-        <div className="flex items-center gap-3">
-          <label className="rounded-[5px] border border-input-border px-4 py-2 text-sm font-medium text-heading cursor-pointer hover:bg-gray-50 transition-colors">
-            {csvFile ? csvFile.name : "Choose .csv file"}
-            <input
-              type="file"
-              accept=".csv"
-              onChange={(e) => setCsvFile(e.target.files?.[0] ?? null)}
-              className="hidden"
-            />
-          </label>
-          <button
-            onClick={handleUploadCsv}
-            disabled={!csvFile || uploading}
-            className="rounded-[5px] bg-btn-active-bg px-4 py-2 text-sm font-medium text-btn-active-text disabled:bg-btn-inactive-bg disabled:text-btn-inactive-text"
-          >
-            {uploading ? "Uploading..." : "Upload & Create"}
-          </button>
-        </div>
-        {csvStatus && (
-          <p className={`mt-3 text-sm whitespace-pre-wrap ${csvStatus.startsWith("Error") ? "text-red-600" : "text-green-700"}`}>
-            {csvStatus}
-          </p>
+
+        {/* Drop zone / idle */}
+        {(csvState === "idle" || csvState === "error" || csvState === "done") && (
+          <>
+            <div
+              onDragOver={(e) => { e.preventDefault(); setCsvDragOver(true); }}
+              onDragLeave={() => setCsvDragOver(false)}
+              onDrop={handleCsvDrop}
+              className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer ${
+                csvDragOver ? "border-btn-active-bg bg-green-50" : "border-gray-300 hover:border-gray-400"
+              }`}
+              onClick={() => document.getElementById("csv-file-input")?.click()}
+            >
+              <p className="text-sm text-gray-500">
+                Drop a <code className="bg-gray-100 px-1 rounded text-xs">.csv</code> file here or click to browse
+              </p>
+              <input
+                id="csv-file-input"
+                type="file"
+                accept=".csv"
+                onChange={handleCsvSelect}
+                className="hidden"
+              />
+            </div>
+            {csvState === "error" && (
+              <p className="mt-3 text-sm text-red-600 whitespace-pre-wrap">{csvError}</p>
+            )}
+            {csvState === "done" && (
+              <p className="mt-3 text-sm text-green-700">{csvResult}</p>
+            )}
+          </>
+        )}
+
+        {/* Validating */}
+        {csvState === "validating" && (
+          <div className="py-6 text-center">
+            <p className="text-sm text-gray-500">Validating {csvFile?.name}...</p>
+          </div>
+        )}
+
+        {/* Validated — show per-row results */}
+        {csvState === "validated" && csvRows.length > 0 && (
+          <div className="space-y-4">
+            <div className="flex items-start justify-between">
+              <p className="text-sm text-heading font-medium">
+                {csvRows.length} rows from {csvFile?.name}
+              </p>
+              <button onClick={resetCsv} className="text-xs text-gray-400 hover:text-heading">&times; Clear</button>
+            </div>
+
+            {/* Summary counts */}
+            <div className="flex gap-4 text-xs">
+              {csvRows.filter((r) => r.status === "create").length > 0 && (
+                <span className="text-green-700">{csvRows.filter((r) => r.status === "create").length} new</span>
+              )}
+              {csvRows.filter((r) => r.status === "update_password").length > 0 && (
+                <span className="text-blue-600">{csvRows.filter((r) => r.status === "update_password").length} password update</span>
+              )}
+              {csvRows.filter((r) => r.status === "reassign").length > 0 && (
+                <span className="text-amber-600">{csvRows.filter((r) => r.status === "reassign").length} reassign</span>
+              )}
+              {csvRows.filter((r) => r.status === "error").length > 0 && (
+                <span className="text-red-600">{csvRows.filter((r) => r.status === "error").length} errors</span>
+              )}
+            </div>
+
+            {/* Row details */}
+            <div className="bg-gray-50 rounded-[5px] border border-gray-200 p-3 max-h-60 overflow-y-auto text-xs space-y-1 font-mono">
+              {csvRows.map((r) => (
+                <div key={r.row} className={`flex gap-2 ${r.status === "error" ? "text-red-600" : r.status === "reassign" ? "text-amber-700" : r.status === "update_password" ? "text-blue-600" : "text-body"}`}>
+                  <span className="text-gray-400 w-8 shrink-0">#{r.row}</span>
+                  <span className="w-36 shrink-0 truncate">{r.user}</span>
+                  <span className="w-28 shrink-0">{r.studyId}/{r.cohortId}</span>
+                  <span className="truncate">{r.message}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Action buttons */}
+            {csvRows.some((r) => r.status !== "error") ? (
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={handleUploadCsv}
+                  className="rounded-[5px] bg-btn-active-bg px-4 py-2 text-sm font-medium text-btn-active-text"
+                >
+                  Create / Update Participants
+                </button>
+                {csvRows.some((r) => r.status === "error") && (
+                  <span className="text-xs text-gray-400">Rows with errors will be skipped</span>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-red-600">All rows have errors — nothing to import.</p>
+            )}
+          </div>
+        )}
+
+        {/* Uploading */}
+        {csvState === "uploading" && (
+          <div className="py-6 text-center">
+            <p className="text-sm text-gray-500">Creating participants...</p>
+          </div>
         )}
       </section>
 
