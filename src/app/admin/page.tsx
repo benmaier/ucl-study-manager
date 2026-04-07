@@ -433,8 +433,19 @@ export default function AdminPage() {
             <div className="bg-amber-50 border border-amber-200 rounded-[5px] p-4">
               <p className="text-sm text-amber-800 font-medium">Are you sure?</p>
               <p className="text-sm text-amber-700 mt-1">
-                This will overwrite all stages for {parsedStudy.cohorts.length} cohorts in &ldquo;{parsedStudy.title}&rdquo;.
-                Existing participant progress and chat logs are preserved.
+                {(() => {
+                  const newCount = parsedStudy.cohorts.filter((c) => !existingStudy?.cohorts.find((ec) => ec.cohortId === c.cohortId)).length;
+                  const changedCount = parsedStudy.cohorts.filter((c) => {
+                    const ec = existingStudy?.cohorts.find((ec) => ec.cohortId === c.cohortId);
+                    return ec && ec.stageCount !== c.stages.length;
+                  }).length;
+                  const unchangedCount = parsedStudy.cohorts.length - newCount - changedCount;
+                  const parts = [];
+                  if (newCount) parts.push(`add ${newCount} new cohort${newCount > 1 ? "s" : ""}`);
+                  if (changedCount) parts.push(`update stages for ${changedCount} cohort${changedCount > 1 ? "s" : ""}`);
+                  if (unchangedCount) parts.push(`${unchangedCount} cohort${unchangedCount > 1 ? "s" : ""} unchanged`);
+                  return `This will ${parts.join(", ")} in "${parsedStudy.title}". Existing participant progress and chat logs are preserved.`;
+                })()}
               </p>
             </div>
             <div className="flex items-center gap-3">
