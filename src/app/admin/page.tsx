@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import JSZip from "jszip";
 
 interface CohortInfo {
   id: number;
@@ -156,12 +157,55 @@ export default function AdminPage() {
     setImportResult("");
   };
 
-  const handleFileDrop = (e: React.DragEvent) => {
+  const handleFileDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
-    const file = Array.from(e.dataTransfer.files).find((f) => f.name.endsWith(".zip"));
-    if (file) validateFile(file);
+
+    // Check for a .zip file first
+    const zipFile = Array.from(e.dataTransfer.files).find((f) => f.name.endsWith(".zip"));
+    if (zipFile) {
+      validateFile(zipFile);
+      return;
+    }
+
+    // Check for a dropped folder (beta)
+    const items = Array.from(e.dataTransfer.items);
+    const entries = items
+      .map((item) => item.webkitGetAsEntry?.())
+      .filter((entry): entry is FileSystemEntry => !!entry);
+    const dirEntry = entries.find((entry) => entry.isDirectory);
+
+    if (dirEntry) {
+      setImportState("validating");
+      setImportError("");
+      try {
+        const zip = new JSZip();
+        await addEntryToZip(zip, dirEntry, "");
+        const blob = await zip.generateAsync({ type: "blob" });
+        const file = new File([blob], `${dirEntry.name}.zip`, { type: "application/zip" });
+        validateFile(file);
+      } catch {
+        setImportError("Failed to read folder contents.");
+        setImportState("error");
+      }
+    }
   };
+
+  // Recursively read a dropped directory into a JSZip instance
+  async function addEntryToZip(zip: JSZip, entry: FileSystemEntry, path: string): Promise<void> {
+    if (entry.isFile) {
+      const fileEntry = entry as FileSystemFileEntry;
+      const file = await new Promise<File>((resolve, reject) => fileEntry.file(resolve, reject));
+      zip.file(path + entry.name, file);
+    } else if (entry.isDirectory) {
+      const dirEntry = entry as FileSystemDirectoryEntry;
+      const reader = dirEntry.createReader();
+      const entries = await new Promise<FileSystemEntry[]>((resolve, reject) => reader.readEntries(resolve, reject));
+      for (const child of entries) {
+        await addEntryToZip(zip, child, path + entry.name + "/");
+      }
+    }
+  }
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -332,7 +376,7 @@ export default function AdminPage() {
               onClick={() => document.getElementById("import-file-input")?.click()}
             >
               <p className="text-sm text-gray-500">
-                Drop a <code className="bg-gray-100 px-1 rounded text-xs">.zip</code> file here or click to browse
+                Drop a <code className="bg-gray-100 px-1 rounded text-xs">.zip</code> file or study folder here, or click to browse
               </p>
               <p className="text-xs text-gray-400 mt-1">study.yaml + cohorts/ + content/ + files/</p>
               <input
