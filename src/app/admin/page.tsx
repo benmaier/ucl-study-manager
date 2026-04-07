@@ -607,7 +607,7 @@ export default function AdminPage() {
           >
             <option value="">Select study...</option>
             {studies.filter((s) => !s.isHidden).map((s) => (
-              <option key={s.id} value={s.id}>{s.title}</option>
+              <option key={s.id} value={s.id}>{s.title} ({s.studyId})</option>
             ))}
           </select>
 
