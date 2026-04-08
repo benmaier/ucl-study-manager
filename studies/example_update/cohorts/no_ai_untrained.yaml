@@ -1,0 +1,16 @@
+# ============================================================================
+# Cohort: No AI + No Training
+# ============================================================================
+#
+# This is the control cohort. It inherits the base flow from study.yaml
+# with ZERO changes — no AI assistant, no extra training stage.
+#
+# Participants go through: intro → personality_survey → cognitive_test →
+# break → task1 → task2 → end
+#
+# A cohort file only needs "id" and "label". If there's no "stages" list,
+# the entire base flow is used as-is.
+# ============================================================================
+
+id: no_ai_untrained
+label: "No AI + No Training"

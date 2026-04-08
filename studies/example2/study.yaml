@@ -13,18 +13,12 @@ stages:
     title: "Personality Survey"
     duration: "5:00"
     content: content/personality_survey.md
-    link:
-      label: "Open the personality survey"
-      url: "https://personality-survey.example.com/?user=<USER_ID>"
     confirmation: "I confirm I have completed the personality survey."
 
   - id: cognitive_test
     title: "Cognitive Ability Test"
     duration: "10:00"
     content: content/cognitive_test.md
-    link:
-      label: "Open the cognitive test"
-      url: "https://cognitive-test.example.com/?user=<USER_ID>"
     input:
       label: "Your response"
       prompt: "Briefly describe your approach to the cognitive test."
@@ -60,9 +54,6 @@ stages:
     title: "Negotiation Task"
     duration: "20:00"
     content: content/task2_negotiation.md
-    link:
-      label: "Open the negotiation app"
-      url: "https://company-negotiation-experiment.empirica.app/?participantKey=<USER_ID>"
     input:
       label: "Your negotiation summary"
       prompt: "Describe your negotiation strategy, what happened during the negotiation, and the outcome you achieved."

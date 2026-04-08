@@ -72,7 +72,6 @@ export async function POST(request: NextRequest) {
             })),
             questions: (config.questions as string[]) ?? [],
             input: config.input ?? null,
-            link: config.link ?? null,
             confirmation: (config.confirmation as string) ?? null,
             sidebarPanels: (config.sidebarPanels as unknown[]) ?? [],
           };

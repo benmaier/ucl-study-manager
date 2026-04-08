@@ -111,13 +111,6 @@ function printStage(stage: ParsedStage, index: number, total: number, cohort: Pa
     console.log("");
   }
 
-  // Link
-  if (stage.link) {
-    console.log(`  \x1b[1mLink:\x1b[0m ${stage.link.label}`);
-    console.log(`    \x1b[90m${stage.link.url}\x1b[0m`);
-    console.log("");
-  }
-
   // Questions
   if (stage.questions.length > 0) {
     console.log("  \x1b[1mQuestions:\x1b[0m");

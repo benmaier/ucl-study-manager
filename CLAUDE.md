@@ -248,7 +248,6 @@ When a stage has `chatbot: true`:
 | `files` | List of `{filename, description}` — downloadable task files |
 | `questions` | List of sub-questions |
 | `input` | Text input: `{label, prompt?}`. Omit = no input field. |
-| `link` | External link: `{label, url}` |
 | `confirmation` | Confirmation checkbox text |
 | `sidebar_panels` | Chat sidebar panels: `[{title, content, defaultExpanded?}]` |
 | `skip` | `true` to remove this base stage (cohort overrides only) |

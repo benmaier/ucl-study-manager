@@ -140,7 +140,7 @@ export function mergeStages(
   // Apply field overrides
   const overrideFields = [
     "title", "duration", "content", "chatbot", "provider", "model",
-    "files", "questions", "input", "link", "confirmation", "sidebar_panels",
+    "files", "questions", "input", "confirmation", "sidebar_panels",
   ] as const;
 
   for (const o of fieldOverrides) {
@@ -242,13 +242,6 @@ function resolveStages(
       }
     }
 
-    // Validate link
-    if (s.link && (!s.link.label || !s.link.url)) {
-      throw new ValidationError(
-        `Cohort "${cohortId}", stage "${s.id}": link must have both "label" and "url".`
-      );
-    }
-
     return {
       stageId: s.id,
       title: s.title,
@@ -260,7 +253,6 @@ function resolveStages(
       files,
       questions: s.questions ?? [],
       input: s.input ? { label: s.input.label, prompt: s.input.prompt ?? null } : null,
-      link: s.link ? { label: s.link.label, url: s.link.url } : null,
       confirmation: s.confirmation ?? null,
       sidebarPanels: (s.sidebar_panels ?? []).map((p) => ({
         title: p.title,

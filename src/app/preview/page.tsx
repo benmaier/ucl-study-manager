@@ -207,20 +207,6 @@ export default function PreviewPage() {
             </div>
           )}
 
-          {/* External link */}
-          {stage.link && (
-            <div className="mb-8">
-              <a
-                href={stage.link.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 underline text-sm"
-              >
-                {stage.link.label}
-              </a>
-            </div>
-          )}
-
           {/* Confirmation + submit */}
           {stage.confirmation && (
             <div className="mb-8 space-y-3">

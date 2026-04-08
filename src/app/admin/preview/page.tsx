@@ -254,17 +254,6 @@ export default function AdminPreviewPage() {
             </div>
           )}
 
-          {/* External link */}
-          {stage.link && (
-            <div className="mb-8">
-              <span className="text-blue-600 text-sm inline-flex items-center gap-1.5">
-                {stage.link.label}
-                <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4.25 5.5a.75.75 0 0 0-.75.75v8.5c0 .414.336.75.75.75h8.5a.75.75 0 0 0 .75-.75v-4a.75.75 0 0 1 1.5 0v4A2.25 2.25 0 0 1 12.75 17h-8.5A2.25 2.25 0 0 1 2 14.75v-8.5A2.25 2.25 0 0 1 4.25 4h5a.75.75 0 0 1 0 1.5h-5Zm10.22-1.97a.75.75 0 0 0-.53-.22H11a.75.75 0 0 1 0-1.5h4.25a.75.75 0 0 1 .75.75V7a.75.75 0 0 1-1.5 0V4.81l-5.72 5.72a.75.75 0 1 1-1.06-1.06l5.72-5.72H11.5Z" clipRule="evenodd" /></svg>
-              </span>
-              <p className="text-xs text-gray-400 font-mono mt-1">{stage.link.url}</p>
-            </div>
-          )}
-
           {/* Questions */}
           {stage.questions.length > 0 && (
             <div className="mb-8">

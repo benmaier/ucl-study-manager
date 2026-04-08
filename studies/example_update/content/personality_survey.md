@@ -2,6 +2,4 @@
 
 Please complete the personality survey using the link below. The survey takes approximately 5 minutes and asks about your personality traits and attitudes.
 
-[Open the personality survey](https://personality-survey.example.com/?user=<USER_ID>)
-
 After completing the survey, return to this page and confirm that you have finished.

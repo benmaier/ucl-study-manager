@@ -41,7 +41,6 @@ export interface RawCohortStageOverride {
   files?: (string | RawStageFile)[];
   questions?: string[];
   input?: { label: string; prompt?: string } | null;
-  link?: { label: string; url: string } | null;
   confirmation?: string | null;
   sidebar_panels?: { title: string; content: string; defaultExpanded?: boolean }[] | null;
 }
@@ -64,10 +63,6 @@ export interface RawStage {
   input?: {
     label: string;
     prompt?: string;
-  };
-  link?: {
-    label: string;
-    url: string;
   };
   confirmation?: string;
   sidebar_panels?: { title: string; content: string; defaultExpanded?: boolean }[];
@@ -104,7 +99,6 @@ export interface ParsedStage {
   files: ParsedStageFile[];
   questions: string[];
   input: { label: string; prompt: string | null } | null;
-  link: { label: string; url: string } | null;
   confirmation: string | null;
   sidebarPanels: { title: string; content: string; defaultExpanded?: boolean }[];
 }

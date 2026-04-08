@@ -178,7 +178,6 @@ See `studies/example/` for a fully commented example with 4 cohorts demonstratin
 | `files` | No | List of `{filename, description}` — downloadable files |
 | `questions` | No | Sub-questions displayed before the input field |
 | `input` | No | Text input: `{label, prompt?}`. Adds a textarea with auto-save. |
-| `link` | No | External link: `{label, url}`. Opens in new tab. |
 | `confirmation` | No | Checkbox text. Must be checked before submit. |
 | `sidebar_panels` | No | Chat sidebar panels: `[{title, content, defaultExpanded?}]` |
 | `skip` | No | `true` to remove this stage (cohort overrides only) |
@@ -193,12 +192,10 @@ Use `<AI_ASSISTANT_BUTTON>` in the markdown to control where the chatbot button 
 
 ### Template variables
 
-`<USER_ID>` is replaced with the participant's identifier at runtime — in markdown content, link URLs, and all stage config strings.
+`<USER_ID>` is replaced with the participant's identifier at runtime — in markdown content and all stage config strings. Use it in markdown links to pass the participant ID to external apps:
 
-```yaml
-link:
-  label: "Open Negotiation App"
-  url: "https://example.com/app?participantKey=<USER_ID>"
+```markdown
+[Open Negotiation App](https://example.com/app?participantKey=<USER_ID>)
 ```
 
 ---

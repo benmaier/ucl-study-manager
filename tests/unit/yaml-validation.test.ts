@@ -146,14 +146,6 @@ describe("YAML validation: base stages", () => {
     expect(() => parseStudyYaml(dir)).toThrow("not found");
   });
 
-  it("rejects link with missing url", () => {
-    const dir = makeMinimalStudy({
-      studyYaml:
-        'id: test\ntitle: "Test"\nstages:\n  - id: s1\n    title: "S1"\n    duration: "1:00"\n    link:\n      label: "Click"\n',
-    });
-    expect(() => parseStudyYaml(dir)).toThrow('must have both "label" and "url"');
-  });
-
   it("accepts a valid minimal study", () => {
     const dir = makeMinimalStudy();
     const study = parseStudyYaml(dir);
