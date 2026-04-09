@@ -17,6 +17,30 @@ Built with Next.js, Prisma, and PostgreSQL. Deployed on Vercel with Neon.
 5. **Run the study** — participants log in at the app URL with their credentials
 6. **Export data** — use the CLI to export progress, responses, and chat logs
 
+## Browsing the database (Prisma Studio)
+
+To inspect study data (participants, progress, chat logs), you can use Prisma Studio — a local web UI for the database:
+
+```bash
+git clone https://github.com/benmaier/ucl-study-manager.git
+cd ucl-study-manager
+npm install
+```
+
+Create a `.env` file with the **read-only** database connection string (ask the maintainer):
+
+```bash
+DATABASE_URL=postgresql://researcher:<password>@<host>/neondb?sslmode=require
+```
+
+Then run:
+
+```bash
+npx prisma studio
+```
+
+This opens a browser at `http://localhost:5555` where you can browse all tables, filter rows, and follow relationships. The read-only credential ensures you can view but not modify any data.
+
 ## Study format
 
 ### Directory structure
@@ -335,11 +359,12 @@ Keys can be managed via the admin panel UI or the CLI. The key pool tables are c
 
 To work with the existing deployment at https://ucl-study-manager.vercel.app:
 
-| What you need | Why |
-|---------------|-----|
-| **Vercel team invite** | Deploy and manage environment variables |
-| **Neon `DATABASE_URL`** | CLI tools and local dev server |
-| **Admin password** | Access the `/admin` panel |
+| What you need | Who needs it | Why |
+|---------------|-------------|-----|
+| **Read-only `DATABASE_URL`** | Researchers | Browse data via Prisma Studio |
+| **Admin password** | Researchers | Access the `/admin` panel |
+| **Full `DATABASE_URL`** | Developers | CLI tools, local dev server |
+| **Vercel team invite** | Developers | Deploy and manage environment variables |
 
 Steps:
 
@@ -387,10 +412,18 @@ API keys for LLM providers (Anthropic, OpenAI, Gemini) are managed in the databa
 
 ```bash
 npx prisma db push                       # may need --accept-data-loss for column drops
-npx tsx cli/run-sql.ts sql/setup.sql     # re-create key pool (dropped by schema push)
+npx tsx cli/run-sql.ts sql/setup.sql     # re-create key pool + researcher role (dropped by schema push)
 # Re-add API keys via admin panel or CLI
 vercel deploy --prod
 ```
+
+Note: `sql/setup.sql` creates the `researcher` read-only database role automatically. The password is set to a placeholder — change it after first run:
+
+```sql
+ALTER ROLE researcher WITH PASSWORD 'your-secure-password';
+```
+
+Then give researchers a connection string using that role: `postgresql://researcher:<password>@<host>/neondb?sslmode=require`
 
 ## Known issues
 

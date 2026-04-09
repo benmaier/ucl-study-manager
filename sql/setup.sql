@@ -91,25 +91,26 @@ END;
 $$;
 
 -- ═══════════════════════════════════════════════════════
--- LIMITED-PRIVILEGE USER for the Electron participant app
--- The password here is a placeholder — replace before running.
+-- READ-ONLY ROLE for researchers (Prisma Studio access)
+--
+-- Researchers connect with this role to browse data safely.
+-- They can SELECT all tables but cannot INSERT, UPDATE, or DELETE.
+--
+-- Connection string for researchers:
+--   postgresql://researcher:<password>@<host>/<database>?sslmode=require
 -- ═══════════════════════════════════════════════════════
 
--- CREATE USER participant_app WITH PASSWORD 'REPLACE_WITH_SECURE_PASSWORD';
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'researcher') THEN
+    CREATE ROLE researcher WITH LOGIN PASSWORD 'REPLACE_WITH_SECURE_PASSWORD';
+  END IF;
+END
+$$;
 
--- Read access to study structure
--- GRANT SELECT ON studies, cohorts, stages, stage_files, study_sessions, participants TO participant_app;
+-- Grant read access to all existing tables
+GRANT USAGE ON SCHEMA public TO researcher;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO researcher;
 
--- Write access to logs and progress (INSERT only, no DELETE)
--- GRANT INSERT, SELECT ON chat_logs, chat_file_logs, participant_progress TO participant_app;
--- GRANT UPDATE (completed_at, input_answer) ON participant_progress TO participant_app;
-
--- Sequences for auto-increment
--- GRANT USAGE ON SEQUENCE chat_logs_id_seq, chat_file_logs_id_seq, participant_progress_id_seq TO participant_app;
-
--- Key assignment function (SECURITY DEFINER — runs as admin internally)
--- GRANT EXECUTE ON FUNCTION assign_api_key(INT, VARCHAR) TO participant_app;
-
--- Key pool tables: read-only for session_key_assignments (audit), no direct access to api_keys
--- GRANT INSERT ON session_key_assignments TO participant_app;
--- GRANT USAGE ON SEQUENCE session_key_assignments_id_seq TO participant_app;
+-- Automatically grant read access to any future tables
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO researcher;
