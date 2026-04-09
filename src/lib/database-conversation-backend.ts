@@ -219,8 +219,21 @@ export class DatabaseConversationBackend implements ConversationBackend {
       orderBy: { createdAt: "asc" },
     });
 
-    // Number by creation order, include all threads (even empty new ones)
-    const threads: ThreadMeta[] = conversations.map((c, i) => ({
+    // Clean up empty conversations (e.g. from failed first messages / API errors)
+    const empty = conversations.filter((c) => {
+      const state = c.state as Record<string, unknown> | null;
+      const turns = state?.turns as unknown[] | undefined;
+      return !turns || turns.length === 0;
+    });
+    if (empty.length > 0) {
+      await prisma.chatConversation.deleteMany({
+        where: { id: { in: empty.map((c) => c.id) } },
+      });
+    }
+    const valid = conversations.filter((c) => !empty.includes(c));
+
+    // Number by creation order
+    const threads: ThreadMeta[] = valid.map((c, i) => ({
       remoteId: c.threadId,
       title: c.title || `Chat ${String(i + 1).padStart(2, "0")}`,
       status: "regular" as const,
