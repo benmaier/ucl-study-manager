@@ -706,8 +706,7 @@ export default function AdminPage() {
       <section className="mb-8 rounded-lg border border-gray-200 p-6">
         <h2 className="text-lg font-medium text-heading mb-3">API Keys</h2>
         <p className="text-sm text-body mb-3">
-          LLM API keys for chatbot stages. Keys added here are stored in a database pool and load-balanced across participants.
-          If no pool key is available, the app falls back to environment variables (<code className="bg-gray-100 px-1 rounded text-xs">ANTHROPIC_API_KEY</code>, <code className="bg-gray-100 px-1 rounded text-xs">GOOGLE_API_KEY</code>).
+          LLM API keys for chatbot stages. Keys are stored in a database pool and load-balanced across participants.
         </p>
 
         {/* Existing keys */}
