@@ -301,12 +301,14 @@ If connecting to the shared Neon database, ask the current maintainer for the co
 # Push schema to database
 npx prisma db push
 
-# Set up API key pool tables (once per fresh database)
-npx tsx cli/run-sql.ts sql/setup.sql
+# Set up key pool tables + read-only researcher role
+npx tsx cli/setup-db.ts
 
 # Start dev server
 npm run dev
 ```
+
+The `setup-db` script creates the API key pool tables and a read-only `researcher` database role with a random password. The credentials are saved to `researcher-credentials.txt` (gitignored) — share this file with researchers who need Prisma Studio access.
 
 The app runs at `http://localhost:3000`. Admin panel at `http://localhost:3000/admin`.
 
@@ -351,7 +353,7 @@ API keys are stored in a PostgreSQL key pool (not environment variables). The po
 
 Keys can be managed via the admin panel UI or the CLI. The key pool tables are created by `sql/setup.sql` and use a `SECURITY DEFINER` function for secure key assignment.
 
-**Important:** If you run `npx prisma db push --accept-data-loss`, the key pool tables (not managed by Prisma) will be dropped. Re-run `npx tsx cli/run-sql.ts sql/setup.sql` and re-add your API keys afterward.
+**Important:** If you run `npx prisma db push --accept-data-loss`, the key pool tables (not managed by Prisma) will be dropped. Re-run `npx tsx cli/setup-db.ts` and re-add your API keys afterward.
 
 ## Deployment to Vercel
 
@@ -394,7 +396,7 @@ vercel deploy --prod   # production
 ```bash
 vercel env pull .env
 npx prisma db push
-npx tsx cli/run-sql.ts sql/setup.sql
+npx tsx cli/setup-db.ts
 ```
 
 7. Add API keys via the admin panel (or CLI), import a study, and create participants
@@ -412,18 +414,12 @@ API keys for LLM providers (Anthropic, OpenAI, Gemini) are managed in the databa
 
 ```bash
 npx prisma db push                       # may need --accept-data-loss for column drops
-npx tsx cli/run-sql.ts sql/setup.sql     # re-create key pool + researcher role (dropped by schema push)
+npx tsx cli/setup-db.ts     # re-create key pool + researcher role (dropped by schema push)
 # Re-add API keys via admin panel or CLI
 vercel deploy --prod
 ```
 
-Note: `sql/setup.sql` creates the `researcher` read-only database role automatically. The password is set to a placeholder — change it after first run:
-
-```sql
-ALTER ROLE researcher WITH PASSWORD 'your-secure-password';
-```
-
-Then give researchers a connection string using that role: `postgresql://researcher:<password>@<host>/neondb?sslmode=require`
+The `setup-db` script re-creates the key pool tables and regenerates the read-only researcher password. Credentials are saved to `researcher-credentials.txt`.
 
 ## Known issues
 

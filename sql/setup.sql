@@ -93,24 +93,16 @@ $$;
 -- ═══════════════════════════════════════════════════════
 -- READ-ONLY ROLE for researchers (Prisma Studio access)
 --
--- Researchers connect with this role to browse data safely.
--- They can SELECT all tables but cannot INSERT, UPDATE, or DELETE.
---
--- Connection string for researchers:
---   postgresql://researcher:<password>@<host>/<database>?sslmode=require
+-- The researcher role is created by cli/setup-db.ts (not here)
+-- because it needs to generate a random password and save it to a file.
+-- This section only grants permissions (idempotent, safe to re-run).
 -- ═══════════════════════════════════════════════════════
 
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'researcher') THEN
-    CREATE ROLE researcher WITH LOGIN PASSWORD 'REPLACE_WITH_SECURE_PASSWORD';
-  END IF;
-END
-$$;
-
--- Grant read access to all existing tables
-GRANT USAGE ON SCHEMA public TO researcher;
-GRANT SELECT ON ALL TABLES IN SCHEMA public TO researcher;
-
--- Automatically grant read access to any future tables
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO researcher;
+-- Grant read access to all existing tables (no-op if role doesn't exist yet)
+DO $$ BEGIN
+  GRANT USAGE ON SCHEMA public TO researcher;
+  GRANT SELECT ON ALL TABLES IN SCHEMA public TO researcher;
+  ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO researcher;
+EXCEPTION WHEN undefined_object THEN
+  RAISE NOTICE 'researcher role does not exist yet — run: npx tsx cli/setup-db.ts';
+END $$;
