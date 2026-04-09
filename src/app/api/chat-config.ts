@@ -27,6 +27,7 @@ export async function getChatConfig(): Promise<ChatRouteConfig> {
       cohort: {
         select: {
           provider: true,
+          model: true,
           stages: {
             select: {
               id: true,
@@ -51,13 +52,15 @@ export async function getChatConfig(): Promise<ChatRouteConfig> {
     return hasChatbot && prog && !prog.completedAt;
   });
 
-  // Provider resolution: stage config > cohort default
+  // Provider + model resolution: stage config > cohort default
   const stageConfig = currentChatStage?.config as Record<string, unknown> | undefined;
   const provider = (
     (stageConfig?.provider as string) ||
     participant?.cohort.provider ||
     "anthropic"
   ) as "anthropic" | "openai" | "gemini";
+
+  const model = (stageConfig?.model as string) || participant?.cohort.model || undefined;
 
   const stageId = currentChatStage?.id || 0;
 
@@ -82,10 +85,12 @@ export async function getChatConfig(): Promise<ChatRouteConfig> {
     provider,
     apiKey,
     stageFileHashes,
+    model,
   );
 
   return {
     backend,
+    model,
     apiBasePath: "/api",
   };
 }

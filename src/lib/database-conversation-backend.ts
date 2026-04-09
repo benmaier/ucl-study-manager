@@ -109,6 +109,7 @@ export class DatabaseConversationBackend implements ConversationBackend {
     private provider: "anthropic" | "openai" | "gemini",
     private apiKey: string | undefined,
     private stageFileHashes: Map<string, string> = new Map(),
+    private model: string | undefined = undefined,
   ) {}
 
   private getPool(): pg.Pool {
@@ -158,12 +159,14 @@ export class DatabaseConversationBackend implements ConversationBackend {
         try {
           conversation = await Conversation.resume(state as any, {
             provider: this.provider,
+            model: this.model,
             apiKey: this.apiKey,
             writers,
           });
         } catch {
           conversation = new Conversation({
             provider: this.provider,
+            model: this.model,
             apiKey: this.apiKey,
             id: threadId,
             writers,
