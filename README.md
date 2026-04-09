@@ -1,51 +1,31 @@
 # UCL Study Manager
 
-A web application for running timed research studies with optional LLM chatbot access. Researchers define studies using YAML files, manage participants via an admin panel, and collect structured data (stage progress, text responses, and full chat transcripts).
+A web application for running timed research studies with optional LLM chatbot access. Researchers define studies using YAML files, manage participants and API keys via an admin panel, and collect structured data (stage progress, text responses, and full chat transcripts).
 
 Built with Next.js, Prisma, and PostgreSQL. Deployed on Vercel with Neon.
 
-## Table of contents
-
-- [Quick start](#quick-start)
-- [Study format](#study-format)
-  - [Directory structure](#directory-structure)
-  - [study.yaml](#studyyaml)
-  - [Cohort YAML](#cohort-yaml)
-  - [Override semantics](#override-semantics)
-  - [Stage field reference](#stage-field-reference)
-  - [Markdown content](#markdown-content)
-  - [Template variables](#template-variables)
-- [Admin panel](#admin-panel)
-  - [Import a study](#import-a-study)
-  - [Upload participants CSV](#upload-participants-csv)
-  - [Generate test user](#generate-test-user)
-  - [Preview](#preview)
-  - [Deactivate studies](#deactivate-studies)
-- [CLI tools](#cli-tools)
-- [Participant experience](#participant-experience)
-- [API key pool](#api-key-pool)
-- [Local development](#local-development)
-- [Deployment to Vercel](#deployment-to-vercel)
-
 ---
 
-## Quick start
+# For researchers
 
-1. **Create a study** — write YAML files defining your stages and cohorts (see [Study format](#study-format) and `studies/example/` for a fully commented example)
-2. **Import it** — zip the study folder and upload via the [admin panel](#admin-panel), or use the CLI
-3. **Create participants** — upload a CSV or generate test users via the admin panel
-4. **Run the study** — participants log in at the app URL with their credentials
-5. **Export data** — use the CLI to export progress, responses, and chat logs
+## Overview
 
----
+1. **Define a study** as a folder of YAML + markdown files (see [Study format](#study-format))
+2. **Upload it** via the admin panel — the system validates it and shows a preview before importing
+3. **Add API keys** for LLM providers (Anthropic, OpenAI, Gemini) via the admin panel
+4. **Create participants** — upload a CSV or generate test users
+5. **Run the study** — participants log in at the app URL with their credentials
+6. **Export data** — use the CLI to export progress, responses, and chat logs
 
 ## Study format
 
 ### Directory structure
 
+A study is a folder (zipped for upload) with this structure:
+
 ```
 my_study/
-├── study.yaml          # Entry point: study metadata + base stages
+├── study.yaml          # Study metadata + base stages (the default flow)
 ├── cohorts/            # One .yaml per experimental condition (auto-discovered)
 │   ├── control.yaml
 │   └── treatment.yaml
@@ -56,9 +36,11 @@ my_study/
     └── data.csv
 ```
 
+See `studies/example/` in this repo for a fully commented example with 4 cohorts.
+
 ### study.yaml
 
-The entry point. Defines the study ID, title, and the **base flow** of stages that all cohorts inherit.
+The entry point. Defines the study ID, title, and the **base flow** of stages that all cohorts inherit by default.
 
 ```yaml
 id: ai_decision_making
@@ -81,7 +63,7 @@ stages:
         description: "Student enrollment data."
     questions:
       - "Which files are relevant?"
-      - "Did complaints decrease after the campaign?"
+      - "Did complaints decrease?"
     input:
       label: "Your analysis"
       prompt: "Explain your findings."
@@ -100,7 +82,7 @@ stages:
 | `description` | No | Study description |
 | `stages` | Yes | Base flow: ordered list of stages all cohorts inherit |
 
-Cohort files are **auto-discovered** from the `cohorts/` subdirectory — no need to list them.
+Cohort files are **auto-discovered** from the `cohorts/` subdirectory — you don't list them anywhere.
 
 ### Cohort YAML
 
@@ -134,7 +116,7 @@ stages:
         content: "You are assisting a professor..."
 ```
 
-**Control cohort (no changes):**
+**Control cohort (inherits base flow unchanged):**
 
 ```yaml
 id: control
@@ -146,25 +128,23 @@ label: "Control Group"
 | `id` | Yes | Unique cohort identifier |
 | `label` | Yes | Human-readable name |
 | `provider` | If any stage has `chatbot: true` | LLM provider: `anthropic`, `openai`, `gemini` |
-| `model` | If provider is set | Model ID (e.g. `gemini-2.5-flash`) |
+| `model` | If provider is set | Model ID (e.g. `gemini-2.5-flash`, `claude-haiku-4-5-20251001`) |
 | `fallback` | No | Fallback `{provider, model}` if primary fails |
 | `stages` | No | List of stage overrides, additions, or skips |
 
-### Override semantics
+### How overrides work
 
 | Operation | How | Rules |
 |-----------|-----|-------|
-| **Override** | Use the same `id` as a base stage | Only specified fields change. Omitted fields are inherited. |
-| **Add** | Use a new `id` | Must have `after: <stage_id>` or `before: <stage_id>`, plus `title` and `duration`. |
+| **Override** | Use the same `id` as a base stage | Only specified fields change. Everything else is inherited. |
+| **Add** | Use a new `id` not in the base | Must have `after: <stage_id>` or `before: <stage_id>`, plus `title` and `duration`. |
 | **Skip** | Set `skip: true` on a base stage `id` | Removes the stage from this cohort's flow. |
 
-- Field values **replace entirely** (no deep merge for arrays/objects).
+- Field values **replace entirely** (arrays and objects are not merged).
 - Set a field to `null` (YAML `~`) to explicitly remove it from the base.
 - Stages can override the cohort's default `provider`/`model` with their own.
 
-See `studies/example/` for a fully commented example with 4 cohorts demonstrating all override types.
-
-### Stage field reference
+### Stage fields
 
 | Field | Required | Description |
 |-------|----------|-------------|
@@ -186,51 +166,45 @@ See `studies/example/` for a fully commented example with 4 cohorts demonstratin
 
 ### Markdown content
 
-Markdown files in `content/` support standard Markdown plus GitHub Flavored Markdown (tables, strikethrough, etc.). The first `# H1` heading is hidden (the stage title is already shown).
+Markdown files in `content/` support standard Markdown plus GitHub Flavored Markdown (tables, strikethrough, etc.). The first `# H1` heading is hidden (the stage title is already shown as the page heading).
 
-Use `<AI_ASSISTANT_BUTTON>` in the markdown to control where the chatbot button appears. If not present, the button renders at the top of the page.
+**Special placeholders:**
 
-### Template variables
-
-`<USER_ID>` is replaced with the participant's identifier at runtime — in markdown content and all stage config strings. Use it in markdown links to pass the participant ID to external apps:
+- `<AI_ASSISTANT_BUTTON>` — controls where the chatbot button appears in the content. If not present and `chatbot: true`, the button renders at the top of the page.
+- `<USER_ID>` — replaced at runtime with the participant's identifier. Use it in links to pass the participant ID to external apps:
 
 ```markdown
-[Open Negotiation App](https://example.com/app?participantKey=<USER_ID>)
+[Open the survey](https://example.com/survey?user=<USER_ID>)
 ```
-
----
 
 ## Admin panel
 
-The admin panel is at `/admin` (password-protected). It provides a web interface for all study management tasks.
+The admin panel is at `/admin` (password-protected). It provides a web UI for all study management tasks.
 
 ### Import a study
 
-Drag-and-drop a `.zip` file or study folder onto the drop zone (or click to browse). The study is **validated automatically** — you'll see:
+Drag-and-drop a `.zip` file or study folder onto the drop zone (or click to browse). The study is **validated automatically** and you'll see:
 
 - A summary of all cohorts and their stage counts
 - Whether this is a **new study** or an **update** to an existing one
 - For updates: a diff showing new, changed, and unchanged cohorts
 
-You can **Preview** the participant experience before importing. Updates require an explicit confirmation step.
+Click **Preview** to browse the full participant experience in a new tab before importing. Updates require an explicit confirmation step.
+
+### API keys
+
+Add LLM API keys for Anthropic, OpenAI, and Gemini directly in the admin panel. Keys are stored in a database pool and automatically load-balanced across participants. You can add multiple keys per provider, disable/enable individual keys, and delete them.
 
 ### Upload participants CSV
 
-Drag-and-drop a `.csv` file. Format:
+Drag-and-drop a `.csv` file with columns: `user,password,study_id,cohort_id`.
 
-```
-user,password,study_id,cohort_id
-alice-beta-gamma,correct-horse-battery-staple-extra-word,ai_decision_making,gemini_trained
-```
-
-The file is validated automatically — the system checks that each study/cohort exists and flags conflicts:
+The file is validated automatically — the system checks that each study and cohort exists, flags duplicate usernames, and shows per-row status before you confirm:
 
 - **New participant** — will be created
 - **Existing, same cohort** — password will be updated
 - **Existing, different cohort** — will be reassigned (old data preserved)
 - **Error** — missing study/cohort, empty fields
-
-Only after reviewing the validation results can you commit the changes.
 
 ### Generate test user
 
@@ -238,308 +212,191 @@ Select a study and cohort, click "Generate". Creates a test user with a random 3
 
 ### Preview
 
-Each cohort in the "Studies & Cohorts" section has a **Preview** link that opens the full participant view in a new tab — browse all stages without logging in as a participant.
+Each cohort in the "Studies & Cohorts" section has a **Preview** link that opens the full participant view in a new tab.
 
 ### Deactivate studies
 
-Click "Deactivate" on a study to hide it from the active list and dropdowns. Deactivated studies appear in a collapsed section at the bottom and can be re-activated.
+Click "Deactivate" to hide a study from the active list and dropdowns. Deactivated studies appear in a collapsed section and can be re-activated.
 
----
-
-## CLI tools
-
-All CLI commands require `DATABASE_URL` in `.env`.
-
-### Import a study
-
-```bash
-npx tsx cli/import-study.ts studies/my_study/
-```
-
-### Validate a study (with interactive preview)
-
-```bash
-npx tsx cli/validate-study.ts studies/my_study/
-```
-
-Validates the YAML and opens an interactive terminal preview where you can browse cohorts and stages.
-
-### Create a session
-
-```bash
-npx tsx cli/create-session.ts <study-db-id> [--label "March 2026"]
-```
-
-### Generate participants
-
-```bash
-npx tsx cli/generate-participants.ts <session-id> --count <N> --cohort <cohort-id> [--test]
-```
-
-Save the output — passwords are hashed and cannot be recovered.
-
-### Add API keys
-
-```bash
-# Set up key pool tables (first time only)
-npx tsx cli/run-sql.ts sql/setup.sql
-
-# Add a key (global, available to all cohorts)
-npx tsx cli/add-api-key.ts anthropic sk-ant-api03-...
-
-# Add a key for specific cohorts (by numeric DB ID)
-npx tsx cli/add-api-key.ts gemini AIzaSy... 5 6
-```
-
-### Export results
-
-```bash
-npx tsx cli/export-results.ts <session-id> [--output-dir ./exports]
-```
-
-Exports: session metadata, participant overview, stage progress (JSON + CSV), chat transcripts, and uploaded files.
-
----
-
-## Participant experience
+## What participants see
 
 1. Open the app URL in a browser
-2. Enter 3-word username and 6-word password
-3. The study view shows a **schedule sidebar** (left) and **content area** (right)
-4. Timer counts down per stage. Submit button activates when timer expires and confirmation checkbox is checked
-5. Text input auto-saves every 2 seconds
-6. On chatbot stages, "Open AI Assistant" opens a chat in a new tab
-7. After all stages, the participant is logged out
+2. Enter their 3-word username and 6-word password
+3. A **schedule sidebar** (left) shows all stages with progress indicators
+4. The **content area** (right) shows the current stage: instructions, files, questions, input field, and chatbot button
+5. Timer counts down per stage — the submit button activates when the timer expires and the confirmation checkbox is checked
+6. Text input auto-saves every 2 seconds
+7. On chatbot stages, "Open AI Assistant" opens a full chat interface in a new tab
+8. After completing all stages, the participant is logged out
 
 **Test users** additionally see a "Next (skip timer)" button and a logout/reset option.
 
 ---
 
-## API key pool
+# For developers
 
-API keys are stored in the database (not environment variables), enabling:
+## Tech stack
 
-- Multiple keys per provider for load balancing
-- Per-cohort key assignment or global pool
-- Automatic least-used key selection
-
-The key pool uses a PostgreSQL `SECURITY DEFINER` function. If no cohort-specific key exists, it falls back to the global pool.
-
-Set up after a fresh database:
-
-```bash
-npx tsx cli/run-sql.ts sql/setup.sql
-```
-
----
+| Layer | Technology |
+|-------|-----------|
+| Frontend | Next.js (App Router), React, Tailwind CSS |
+| Backend | Next.js API routes (POST only — see [known issues](#known-issues)) |
+| Database | PostgreSQL (Neon) via Prisma ORM |
+| Chat | [ucl-study-llm-chat-api](https://github.com/benmaier/ucl-study-llm-chat-api) (SDK) + [ucl-chat-widget](https://github.com/benmaier/ucl-study-llm-chat-ui) (UI) |
+| Deployment | Vercel |
 
 ## Local development
 
 ### Prerequisites
 
-- Node.js 22+ (check with `node -v`)
-- A PostgreSQL database (local or remote — the CLI tools connect directly)
+- Node.js 22+
+- A PostgreSQL database (local or the shared Neon instance)
 
 ### Setup
 
 ```bash
-# Clone the repo
 git clone https://github.com/benmaier/ucl-study-manager.git
 cd ucl-study-manager
-
-# Install dependencies
 npm install
-
-# Set up environment
 cp .env.example .env
 ```
 
-Edit `.env` with your credentials. There are three environment files you may encounter:
-
-**`.env`** — used by the local dev server and all CLI tools:
+Edit `.env`:
 
 ```bash
 # Required: PostgreSQL connection string
 DATABASE_URL=postgresql://user:password@host:port/database?sslmode=require
 
-# Required for admin panel
+# Required: admin panel password (any string for local dev)
 ADMIN_PASSWORD=local-dev-password
-
-# Optional: LLM API keys for chatbot stages
-# Can also be managed via the database key pool (see API key pool section)
-ANTHROPIC_API_KEY=sk-ant-...
-GOOGLE_API_KEY=AIzaSy...
 ```
 
-**`.env.neon`** — Neon-specific variables (if using the Neon PostgreSQL integration). Typically contains the same `DATABASE_URL` plus Neon-specific variants:
+If connecting to the shared Neon database, ask the current maintainer for the connection string, or run `vercel env pull .env` if you have Vercel access.
 
 ```bash
-DATABASE_URL=postgresql://neondb_owner:your-password@your-project.neon.tech/neondb?sslmode=require
-DATABASE_URL_UNPOOLED=postgresql://neondb_owner:your-password@your-project.neon.tech/neondb?sslmode=require
-```
-
-**`.env.vercel`** — auto-generated by `vercel env pull`. Contains all Vercel environment variables for local use. Do not commit this file.
-
-```bash
-# Generated by vercel env pull
-DATABASE_URL=postgresql://...
-ADMIN_PASSWORD=...
-GOOGLE_API_KEY=...
-```
-
-If you're connecting to the existing Neon database (shared with the Vercel deployment), ask the current maintainer for the connection string, or run `vercel env pull .env` to get all variables at once. The CLI tools and the dev server both use `DATABASE_URL` from `.env`.
-
-All `.env*` files are gitignored.
-
-```bash
-# Push the Prisma schema to the database (creates/updates tables)
+# Push schema to database
 npx prisma db push
 
-# Set up API key pool tables (PostgreSQL functions, only needed once)
+# Set up API key pool tables (once per fresh database)
 npx tsx cli/run-sql.ts sql/setup.sql
 
-# Start the dev server
+# Start dev server
 npm run dev
 ```
 
-The app runs at `http://localhost:3000`. The admin panel is at `http://localhost:3000/admin`.
+The app runs at `http://localhost:3000`. Admin panel at `http://localhost:3000/admin`.
 
-For the admin panel to work locally, set `ADMIN_PASSWORD` in `.env`:
+All `.env*` files are gitignored.
 
-```
-ADMIN_PASSWORD=any-password-you-want-locally
-```
+### CLI tools
 
-### Useful commands
+All CLI commands use `DATABASE_URL` from `.env`.
 
 ```bash
-# Browse the database in a web UI
-npx prisma studio
-
-# Validate a study without importing (interactive terminal preview)
+# Validate a study (interactive terminal preview)
 npx tsx cli/validate-study.ts studies/example/
 
 # Import a study into the database
 npx tsx cli/import-study.ts studies/example/
 
-# Generate test participants
-npx tsx cli/create-session.ts <study-db-id> --label "Test"
-npx tsx cli/generate-participants.ts <session-id> --count 5 --cohort <cohort-id> --test
+# Create a session for a study
+npx tsx cli/create-session.ts <study-db-id> [--label "Pilot"]
+
+# Generate participants
+npx tsx cli/generate-participants.ts <session-id> --count <N> --cohort <cohort-id> [--test]
+
+# Add API keys to the database pool
+npx tsx cli/add-api-key.ts anthropic sk-ant-...
+npx tsx cli/add-api-key.ts gemini AIzaSy...
+npx tsx cli/add-api-key.ts openai sk-proj-...
 
 # Export all data for a session
-npx tsx cli/export-results.ts <session-id> --output-dir ./exports
+npx tsx cli/export-results.ts <session-id> [--output-dir ./exports]
+
+# Browse the database
+npx prisma studio
 ```
 
-### Complete local workflow
+### API key management
 
-```bash
-# 1. Validate your study YAML (browse stages interactively)
-npx tsx cli/validate-study.ts studies/my_study/
+API keys are stored in a PostgreSQL key pool (not environment variables). The pool supports:
 
-# 2. Import it
-npx tsx cli/import-study.ts studies/my_study/
-# → outputs study DB ID and cohort info
+- Multiple keys per provider for load balancing
+- Per-cohort key assignment or global pool (available to all cohorts)
+- Automatic least-used key selection per participant
 
-# 3. Create a session
-npx tsx cli/create-session.ts 1 --label "Local test"
-# → outputs session ID
+Keys can be managed via the admin panel UI or the CLI. The key pool tables are created by `sql/setup.sql` and use a `SECURITY DEFINER` function for secure key assignment.
 
-# 4. Generate test participants
-npx tsx cli/generate-participants.ts 1 --count 2 --cohort gemini_trained --test
-# → outputs usernames and passwords (save these!)
-
-# 5. Add API keys for chat (if testing chatbot stages)
-npx tsx cli/add-api-key.ts anthropic sk-ant-api03-...
-npx tsx cli/add-api-key.ts gemini AIzaSy...
-
-# 6. Start the server and log in
-npm run dev
-# Open http://localhost:3000 and use the credentials from step 4
-
-# 7. After testing, export data
-npx tsx cli/export-results.ts 1 --output-dir ./exports/test
-```
-
----
+**Important:** If you run `npx prisma db push --accept-data-loss`, the key pool tables (not managed by Prisma) will be dropped. Re-run `npx tsx cli/run-sql.ts sql/setup.sql` and re-add your API keys afterward.
 
 ## Deployment to Vercel
 
-### What you need from the current maintainer
-
-To work with the existing deployment, you'll need:
-
-| Credential | What it's for |
-|------------|---------------|
-| **Neon `DATABASE_URL`** | Connect CLI tools and local dev server to the shared database |
-| **Vercel team invite** | Deploy to production and manage environment variables |
-| **Admin password** | Log in to the `/admin` panel on the deployed app |
-| **LLM API keys** (optional) | Test chatbot stages locally (Anthropic, Gemini) |
-
 ### Joining the existing deployment
 
-The project is deployed at https://ucl-study-manager.vercel.app. To get access:
+To work with the existing deployment at https://ucl-study-manager.vercel.app:
 
-1. Ask the current maintainer to invite you to the Vercel team ("benmaier's projects")
-2. Install the Vercel CLI: `npm i -g vercel`
-3. Log in: `vercel login`
-4. Link the project: `vercel link` (select the existing project when prompted)
-5. Pull environment variables: `vercel env pull .env` (this gives you the production `DATABASE_URL` for CLI use)
+| What you need | Why |
+|---------------|-----|
+| **Vercel team invite** | Deploy and manage environment variables |
+| **Neon `DATABASE_URL`** | CLI tools and local dev server |
+| **Admin password** | Access the `/admin` panel |
 
-Once linked, you can deploy:
+Steps:
+
+1. Get invited to the Vercel team by the current maintainer
+2. `npm i -g vercel && vercel login`
+3. `vercel link` (select the existing project)
+4. `vercel env pull .env` (gets `DATABASE_URL` and `ADMIN_PASSWORD`)
+5. `npm install`
+6. `npm run dev` — local dev server using the production database
+
+To deploy:
 
 ```bash
-# Preview deploy (creates a temporary URL)
-vercel deploy
-
-# Production deploy (updates ucl-study-manager.vercel.app)
-vercel deploy --prod
+vercel deploy          # preview
+vercel deploy --prod   # production
 ```
 
-### Setting up a new deployment from scratch
+### Setting up a new deployment
 
 1. Create a Vercel account and a Neon PostgreSQL database
-2. Link the repo: `vercel` (follow prompts)
+2. Clone the repo, run `vercel` to create a new project
 3. Add the Neon integration in Vercel dashboard (auto-sets `DATABASE_URL`)
-4. Set environment variables in Vercel dashboard (Settings → Environment Variables):
+4. Set `ADMIN_PASSWORD` in Vercel dashboard (Settings → Environment Variables) — use a high-entropy string
+5. Deploy: `vercel deploy --prod`
+6. Set up the database:
+
+```bash
+vercel env pull .env
+npx prisma db push
+npx tsx cli/run-sql.ts sql/setup.sql
+```
+
+7. Add API keys via the admin panel (or CLI), import a study, and create participants
+
+### Environment variables on Vercel
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `DATABASE_URL` | Yes | PostgreSQL connection string (auto-set by Neon integration) |
-| `ADMIN_PASSWORD` | Yes | Password for the `/admin` panel (use a high-entropy string) |
-| `GOOGLE_API_KEY` | If using Gemini | Google AI API key |
-| `ANTHROPIC_API_KEY` | If using Anthropic | Anthropic API key |
+| `DATABASE_URL` | Yes | PostgreSQL connection string (auto-set by Neon) |
+| `ADMIN_PASSWORD` | Yes | Password for the `/admin` panel |
 
-5. Deploy: `vercel deploy --prod`
-6. After the first deploy, set up the database:
-
-```bash
-# Pull the connection string locally
-vercel env pull .env
-
-# Push schema
-npx prisma db push
-
-# Set up key pool tables
-npx tsx cli/run-sql.ts sql/setup.sql
-
-# Add API keys
-npx tsx cli/add-api-key.ts anthropic sk-ant-...
-npx tsx cli/add-api-key.ts gemini AIzaSy...
-```
-
-7. Import a study via the admin panel or CLI, create participants, and you're live.
+API keys for LLM providers (Anthropic, OpenAI, Gemini) are managed in the database via the admin panel — **not** as Vercel environment variables.
 
 ### After schema changes
 
-If `prisma/schema.prisma` is modified:
-
 ```bash
-npx prisma db push              # updates tables (may need --accept-data-loss for column drops)
-npx tsx cli/run-sql.ts sql/setup.sql  # re-creates key pool functions (dropped by schema push)
-npx tsx cli/add-api-key.ts ...  # re-add API keys if key pool tables were recreated
-vercel deploy --prod            # deploy the new code
+npx prisma db push                       # may need --accept-data-loss for column drops
+npx tsx cli/run-sql.ts sql/setup.sql     # re-create key pool (dropped by schema push)
+# Re-add API keys via admin panel or CLI
+vercel deploy --prod
 ```
 
-### Known issue
+## Known issues
 
-GET route handlers in Next.js App Router can silently return 404 on Vercel production. All API routes in this project use POST to work around this. If adding new routes, use POST.
+- **GET route handlers return 404 on Vercel.** All API routes in this project use POST. If adding new routes, use POST.
+- **`prisma db push --accept-data-loss` drops the key pool tables** (they're raw SQL, not Prisma-managed). Always re-run `sql/setup.sql` and re-add API keys afterward.
+
+## License
+
+Apache 2.0 — Copyright University College London (UCL). See [LICENSE](LICENSE).
