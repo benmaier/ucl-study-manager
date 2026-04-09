@@ -250,6 +250,8 @@ function resolveStages(
       contentRef: s.content ?? null,
       contentText,
       chatbot: s.chatbot ?? false,
+      provider: s.provider ?? null,
+      model: s.model ?? null,
       files,
       questions: s.questions ?? [],
       input: s.input ? { label: s.input.label, prompt: s.input.prompt ?? null } : null,

@@ -96,6 +96,8 @@ export interface ParsedStage {
   contentRef: string | null;
   contentText: string | null;
   chatbot: boolean;
+  provider: string | null;
+  model: string | null;
   files: ParsedStageFile[];
   questions: string[];
   input: { label: string; prompt: string | null } | null;
