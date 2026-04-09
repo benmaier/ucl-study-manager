@@ -45,6 +45,12 @@ export default function AdminPage() {
   const [csvDragOver, setCsvDragOver] = useState(false);
   const [csvRows, setCsvRows] = useState<{ row: number; user: string; studyId: string; cohortId: string; status: string; message: string }[]>([]);
 
+  // API keys
+  const [apiKeys, setApiKeys] = useState<{ id: number; provider: string; label: string; key_preview: string; session_assignment_count: number; is_active: boolean }[]>([]);
+  const [newKeyProvider, setNewKeyProvider] = useState("anthropic");
+  const [newKeyValue, setNewKeyValue] = useState("");
+  const [addingKey, setAddingKey] = useState(false);
+
   // Generate test user
   const [selectedStudyId, setSelectedStudyId] = useState<number | null>(null);
   const [selectedCohortId, setSelectedCohortId] = useState("");
@@ -62,9 +68,19 @@ export default function AdminPage() {
     } catch {}
   }, []);
 
+  const fetchApiKeys = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/api-keys", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "list" }) });
+      if (res.ok) {
+        const data = await res.json();
+        setApiKeys(data.keys || []);
+      }
+    } catch {}
+  }, []);
+
   useEffect(() => {
-    if (authed) fetchStudies();
-  }, [authed, fetchStudies]);
+    if (authed) { fetchStudies(); fetchApiKeys(); }
+  }, [authed, fetchStudies, fetchApiKeys]);
 
   // Check if already authed on mount
   useEffect(() => {
@@ -684,6 +700,97 @@ export default function AdminPage() {
             <p><span className="text-gray-500">Pass:</span>  {generatedCreds.password}</p>
           </div>
         )}
+      </section>
+
+      {/* ── API Keys ── */}
+      <section className="mb-8 rounded-lg border border-gray-200 p-6">
+        <h2 className="text-lg font-medium text-heading mb-3">API Keys</h2>
+        <p className="text-sm text-body mb-3">
+          LLM API keys for chatbot stages. Keys are stored in a database pool and automatically assigned to participants.
+          Add one key per provider, or multiple keys for load balancing.
+        </p>
+
+        {/* Existing keys */}
+        {apiKeys.length > 0 && (
+          <div className="mb-4 space-y-1">
+            {apiKeys.map((k) => (
+              <div key={k.id} className="flex items-center gap-3 text-sm py-1">
+                <code className="font-mono text-xs bg-gray-100 px-1.5 py-0.5 rounded w-20 text-center">{k.provider}</code>
+                <code className="font-mono text-xs text-gray-500">{k.key_preview}</code>
+                <span className="text-xs text-gray-400">{k.session_assignment_count} uses</span>
+                <span className={`text-xs ${k.is_active ? "text-green-600" : "text-gray-400"}`}>
+                  {k.is_active ? "active" : "inactive"}
+                </span>
+                <div className="ml-auto flex gap-2">
+                  <button
+                    onClick={async () => {
+                      await fetch("/api/admin/api-keys", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "toggle", keyId: k.id }) });
+                      fetchApiKeys();
+                    }}
+                    className="text-xs text-gray-400 hover:text-heading"
+                  >
+                    {k.is_active ? "Disable" : "Enable"}
+                  </button>
+                  <button
+                    onClick={async () => {
+                      if (!confirm(`Delete this ${k.provider} key (${k.key_preview})?`)) return;
+                      await fetch("/api/admin/api-keys", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "delete", keyId: k.id }) });
+                      fetchApiKeys();
+                    }}
+                    className="text-xs text-gray-400 hover:text-red-500"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        {apiKeys.length === 0 && (
+          <p className="text-sm text-gray-400 mb-4">No API keys configured.</p>
+        )}
+
+        {/* Add key form */}
+        <div className="flex items-center gap-3">
+          <select
+            value={newKeyProvider}
+            onChange={(e) => setNewKeyProvider(e.target.value)}
+            className="rounded-[5px] border border-input-border px-3 py-2 text-sm outline-none"
+          >
+            <option value="anthropic">Anthropic</option>
+            <option value="openai">OpenAI</option>
+            <option value="gemini">Gemini</option>
+          </select>
+          <input
+            type="text"
+            value={newKeyValue}
+            onChange={(e) => setNewKeyValue(e.target.value)}
+            placeholder="Paste API key..."
+            className="flex-1 rounded-[5px] border border-input-border px-3 py-2 text-sm font-mono outline-none"
+          />
+          <button
+            onClick={async () => {
+              if (!newKeyValue.trim()) return;
+              setAddingKey(true);
+              try {
+                const res = await fetch("/api/admin/api-keys", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "add", provider: newKeyProvider, apiKey: newKeyValue.trim() }) });
+                if (res.ok) {
+                  setNewKeyValue("");
+                  fetchApiKeys();
+                } else {
+                  const data = await res.json();
+                  alert(data.error || "Failed to add key.");
+                }
+              } finally {
+                setAddingKey(false);
+              }
+            }}
+            disabled={!newKeyValue.trim() || addingKey}
+            className="rounded-[5px] bg-btn-active-bg px-4 py-2 text-sm font-medium text-btn-active-text disabled:bg-btn-inactive-bg disabled:text-btn-inactive-text"
+          >
+            {addingKey ? "Adding..." : "Add Key"}
+          </button>
+        </div>
       </section>
 
       {/* ── Studies & Cohorts ── */}
