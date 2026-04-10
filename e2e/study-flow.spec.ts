@@ -34,7 +34,16 @@ async function login(page: Page) {
   await page.locator("#identifier").fill(TEST_USER!);
   await page.locator("#password").fill(TEST_PASS!);
   await page.locator("button[type='submit']").click();
-  // Wait for study page to load
+  await page.waitForURL("**/study", { timeout: 15_000 });
+}
+
+/** Log in and reset the test user's progress, chat logs, and conversations. */
+async function loginAndReset(page: Page) {
+  await login(page);
+  const response = await page.request.post("/api/participant/reset");
+  expect(response.ok()).toBe(true);
+  // Reload to get fresh stage state
+  await page.goto("/study");
   await page.waitForURL("**/study", { timeout: 15_000 });
 }
 
@@ -135,14 +144,9 @@ async function verifyToolCards(page: Page) {
 // ---------------------------------------------------------------------------
 
 test.describe("Study flow", () => {
-  test("participant can log in", async ({ page }) => {
-    await login(page);
-    // Should see the study view with sidebar
+  test("participant can log in and see study", async ({ page }) => {
+    await loginAndReset(page);
     await expect(page.locator("text=Schedule")).toBeVisible();
-  });
-
-  test("study shows stages in sidebar", async ({ page }) => {
-    await login(page);
     // Chatbot test study has 3 stages
     await expect(page.locator("text=Anthropic")).toBeVisible();
     await expect(page.locator("text=Gemini")).toBeVisible();
@@ -150,13 +154,12 @@ test.describe("Study flow", () => {
   });
 
   test("stage content renders with chatbot button", async ({ page }) => {
-    await login(page);
-    // First stage should have the AI assistant button
+    await loginAndReset(page);
     await expect(page.locator("text=Open AI Assistant")).toBeVisible({ timeout: 10_000 });
   });
 
   test("test user can skip timer", async ({ page }) => {
-    await login(page);
+    await loginAndReset(page);
     const skipBtn = page.locator("text=Next (skip timer)");
     await expect(skipBtn).toBeVisible({ timeout: 5_000 });
   });
@@ -172,7 +175,7 @@ test.describe("Chat — Anthropic stage", () => {
 
   test.beforeEach(async ({ page }) => {
     studyPage = page;
-    await login(studyPage);
+    await loginAndReset(studyPage);
     chatPage = await openChat(studyPage);
     await waitForChatReady(chatPage);
   });
