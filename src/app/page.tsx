@@ -98,6 +98,12 @@ export default function LoginPage() {
           )}
         </div>
       </form>
+      <footer className="absolute bottom-4 left-0 right-0 text-center">
+        <p className="text-xs text-gray-400">
+          This site uses session-only cookies for authentication.{" "}
+          <a href="/privacy-and-contact" className="underline hover:text-gray-500">Privacy & Contact</a>
+        </p>
+      </footer>
     </main>
   );
 }

@@ -337,7 +337,7 @@ export default function AdminPage() {
   // ── Login screen ──
   if (!authed) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-white">
+      <main className="relative flex min-h-screen items-center justify-center bg-white">
         <form onSubmit={handleLogin} className="w-full max-w-sm space-y-4 px-8">
           <h1 className="text-2xl font-normal text-heading text-center">Admin Panel</h1>
           <input
@@ -357,6 +357,12 @@ export default function AdminPage() {
             Sign in
           </button>
         </form>
+        <footer className="absolute bottom-4 left-0 right-0 text-center">
+          <p className="text-xs text-gray-400">
+            This site uses session-only cookies for authentication.{" "}
+            <a href="/privacy-and-contact" className="underline hover:text-gray-500">Privacy & Contact</a>
+          </p>
+        </footer>
       </main>
     );
   }
