@@ -1,0 +1,31 @@
+id: chatbot_test
+title: "Chatbot Provider Test"
+description: "Three stages testing Anthropic, Gemini, and OpenAI chatbots"
+
+stages:
+  - id: anthropic_stage
+    title: "Anthropic (Claude Haiku)"
+    duration: "0:10"
+    content: content/stage.md
+    chatbot: true
+    provider: anthropic
+    model: claude-haiku-4-5-20251001
+    confirmation: "Done testing Anthropic."
+
+  - id: gemini_stage
+    title: "Gemini (2.5 Flash)"
+    duration: "0:10"
+    content: content/stage.md
+    chatbot: true
+    provider: gemini
+    model: gemini-2.5-flash
+    confirmation: "Done testing Gemini."
+
+  - id: openai_stage
+    title: "OpenAI (GPT-5)"
+    duration: "0:10"
+    content: content/stage.md
+    chatbot: true
+    provider: openai
+    model: gpt-5
+    confirmation: "Done testing OpenAI."

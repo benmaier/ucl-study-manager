@@ -12,3 +12,7 @@ researcher-credentials.txt
 exports/
 .vercel
 *.zip
+
+ucl-study-llm-chat-api/
+ucl-study-llm-chat-ui/
+

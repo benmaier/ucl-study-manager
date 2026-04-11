@@ -1,0 +1,3 @@
+id: all_providers
+label: "All Providers"
+# No cohort-level provider — each stage defines its own
