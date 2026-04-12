@@ -7,8 +7,10 @@ export const POST = async (req: Request) => {
     return createChatHandler(config).POST(req);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
+    const stack = err instanceof Error ? err.stack : undefined;
+    console.error("[chat route] Error:", message, stack);
     return new Response(JSON.stringify({ error: message }), {
-      status: 401,
+      status: 500,
       headers: { "Content-Type": "application/json" },
     });
   }
