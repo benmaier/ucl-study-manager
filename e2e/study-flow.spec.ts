@@ -26,6 +26,12 @@ if (!TEST_USER || !TEST_PASS) {
   throw new Error("Set TEST_USER and TEST_PASS env vars for E2E tests");
 }
 
+// Tunable timeouts
+const TEST_TIMEOUT = 120_000;      // max time per test
+const CLOSE_WAIT = 2_000;          // pause before closing chat window
+
+test.setTimeout(TEST_TIMEOUT);
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -92,7 +98,8 @@ async function sendMessageWithFiles(page: Page, text: string, filePaths: string[
 }
 
 async function waitForStreamingDone(page: Page) {
-  await page.locator(".aui-composer-send").waitFor({ state: "visible", timeout: 90_000 });
+  // Wait for the send button's arrow icon to reappear (it's replaced by a stop button during streaming)
+  await page.locator(".aui-composer-send-icon").waitFor({ state: "visible", timeout: 90_000 });
 }
 
 async function logConversation(page: Page) {
@@ -182,7 +189,7 @@ function chatTestsFor(providerLabel: string) {
 
     const text = await chatPage.locator(".aui-assistant-message-content").first().textContent();
     expect(text!.length).toBeGreaterThan(0);
-    await chatPage.waitForTimeout(5000);
+    await chatPage.waitForTimeout(CLOSE_WAIT);
     await chatPage.close();
   });
 
@@ -201,7 +208,7 @@ function chatTestsFor(providerLabel: string) {
 
     await expect(toolCard.locator(".aui-tool-fallback-trigger")).toContainText("Used tool");
     await verifyToolCards(chatPage);
-    await chatPage.waitForTimeout(5000);
+    await chatPage.waitForTimeout(CLOSE_WAIT);
     await chatPage.close();
   });
 
@@ -223,7 +230,51 @@ function chatTestsFor(providerLabel: string) {
     const content = await chatPage.locator(".aui-assistant-message-content").first().textContent();
     expect(content!.toUpperCase()).toContain("BRAVO");
     expect(content).toMatch(/100[01]|1,00[01]|thousand/);
-    await chatPage.waitForTimeout(5000);
+    await chatPage.waitForTimeout(CLOSE_WAIT);
+    await chatPage.close();
+  });
+
+  test("image background color recalled after reload", async ({ page }) => {
+    await login(page);
+    const chatPage = await openChat(page);
+    await waitForChatReady(chatPage);
+    await chatPage.waitForTimeout(3000);
+
+    // Select last conversation (from previous image+CSV test)
+    const thread = chatPage.locator("[data-slot='thread-list-item'] button, .group.flex.items-center.rounded-md button").first();
+    if (await thread.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await thread.click();
+      await chatPage.waitForTimeout(2000);
+    }
+
+    await sendMessage(chatPage, "What is the background color of the image with the code from the first message? Just say the color.");
+    await waitForStreamingDone(chatPage);
+    await logConversation(chatPage);
+
+    const messages = chatPage.locator(".aui-assistant-message-content");
+    const lastMsg = await messages.last().textContent();
+    expect(lastMsg!.toLowerCase()).toMatch(/white/);
+    await chatPage.waitForTimeout(CLOSE_WAIT);
+    await chatPage.close();
+  });
+
+  test("analyze CSV data with Python (live watch)", async ({ page }) => {
+    await login(page);
+    const chatPage = await openChat(page);
+    await waitForChatReady(chatPage);
+    const stopExpand = autoExpandToolCards(chatPage);
+
+    await sendMessageWithFiles(
+      chatPage,
+      "Analyze this CSV with Python. Compute summary statistics and create a simple visualization.",
+      [path.join(FIXTURES, "test-data.csv")],
+    );
+    await waitForStreamingDone(chatPage);
+    stopExpand();
+    await logConversation(chatPage);
+
+    // No assertions — this test is for live observation
+    await chatPage.waitForTimeout(CLOSE_WAIT);
     await chatPage.close();
   });
 
@@ -249,7 +300,7 @@ function chatTestsFor(providerLabel: string) {
     expect(count).toBeGreaterThanOrEqual(2);
     const text = await messages.nth(count - 1).textContent();
     expect(text!.toUpperCase()).toContain("BRAVO");
-    await chatPage.waitForTimeout(5000);
+    await chatPage.waitForTimeout(CLOSE_WAIT);
     await chatPage.close();
   });
 
@@ -275,11 +326,12 @@ function chatTestsFor(providerLabel: string) {
 
     await sendMessage(chatPage, "What was the exact phrase I asked you to remember? Repeat it.");
     await waitForStreamingDone(chatPage);
+    await chatPage.waitForTimeout(2000); // wait for smooth text animation to finish
     await logConversation(chatPage);
 
     const text = await chatPage.locator(".aui-assistant-message-content").last().textContent();
     expect(text!.toLowerCase()).toMatch(/pineapple|telescope|42/);
-    await chatPage.waitForTimeout(5000);
+    await chatPage.waitForTimeout(CLOSE_WAIT);
     await chatPage.close();
   });
 }
