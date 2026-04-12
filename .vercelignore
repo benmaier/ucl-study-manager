@@ -8,6 +8,8 @@ tests
 cli
 sql
 scripts
+ucl-study-llm-chat-api
+ucl-study-llm-chat-ui
 *.exe
 *.dmg
 *.AppImage
