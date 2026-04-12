@@ -216,14 +216,24 @@ export class DatabaseConversationBackend implements ConversationBackend {
   async onUserMessageReceived(threadId: string, message: string): Promise<void> {
     // Store the user message in the conversation state immediately,
     // so the conversation is non-empty even before the turn completes.
-    await prisma.chatConversation.update({
+    await prisma.chatConversation.upsert({
       where: {
         participantId_threadId: {
           participantId: this.participantId,
           threadId,
         },
       },
-      data: {
+      create: {
+        threadId,
+        participantId: this.participantId,
+        stageId: this.stageId,
+        provider: this.provider,
+        state: {
+          _pendingUserMessage: message,
+          _pendingAt: new Date().toISOString(),
+        },
+      },
+      update: {
         state: {
           _pendingUserMessage: message,
           _pendingAt: new Date().toISOString(),
