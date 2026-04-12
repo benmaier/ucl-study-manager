@@ -213,17 +213,40 @@ export class DatabaseConversationBackend implements ConversationBackend {
     return conversation;
   }
 
+  async onUserMessageReceived(threadId: string, message: string): Promise<void> {
+    // Store the user message in the conversation state immediately,
+    // so the conversation is non-empty even before the turn completes.
+    await prisma.chatConversation.update({
+      where: {
+        participantId_threadId: {
+          participantId: this.participantId,
+          threadId,
+        },
+      },
+      data: {
+        state: {
+          _pendingUserMessage: message,
+          _pendingAt: new Date().toISOString(),
+        },
+      },
+    });
+  }
+
   async listThreads(): Promise<{ threads: ThreadMeta[] }> {
     const conversations = await prisma.chatConversation.findMany({
       where: { participantId: this.participantId, stageId: this.stageId },
       orderBy: { createdAt: "asc" },
     });
 
-    // Clean up empty conversations (e.g. from failed first messages / API errors)
+    // Clean up truly empty conversations (no turns AND no pending user message).
+    // Conversations mid-stream have a _pendingUserMessage, so they won't be deleted.
     const empty = conversations.filter((c) => {
       const state = c.state as Record<string, unknown> | null;
-      const turns = state?.turns as unknown[] | undefined;
-      return !turns || turns.length === 0;
+      if (!state) return true;
+      const turns = state.turns as unknown[] | undefined;
+      const hasTurns = turns && turns.length > 0;
+      const hasPending = !!state._pendingUserMessage;
+      return !hasTurns && !hasPending;
     });
     if (empty.length > 0) {
       await prisma.chatConversation.deleteMany({
