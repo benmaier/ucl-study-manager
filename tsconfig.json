@@ -40,6 +40,8 @@
     "node_modules",
     "dist",
     "dist-electron",
-    "electron"
+    "electron",
+    "ucl-study-llm-chat-api",
+    "ucl-study-llm-chat-ui"
   ]
 }
