@@ -189,24 +189,27 @@ export class DatabaseConversationBackend implements ConversationBackend {
         writers,
       });
 
-      // Create DB record (StateWriter.onConversationStart also does this,
-      // but we set the correct stageId here)
-      await prisma.chatConversation.upsert({
-        where: {
-          participantId_threadId: {
-            participantId: this.participantId,
-            threadId,
+      // Create DB record — use try/catch to handle race with onUserMessageReceived
+      try {
+        await prisma.chatConversation.upsert({
+          where: {
+            participantId_threadId: {
+              participantId: this.participantId,
+              threadId,
+            },
           },
-        },
-        create: {
-          threadId,
-          participantId: this.participantId,
-          stageId: this.stageId,
+          create: {
+            threadId,
+            participantId: this.participantId,
+            stageId: this.stageId,
           provider: this.provider,
           state: {},
         },
         update: {},
-      });
+        });
+      } catch {
+        // Race with onUserMessageReceived — record already exists, that's fine
+      }
     }
 
     this.cache.set(threadId, conversation);
@@ -216,30 +219,24 @@ export class DatabaseConversationBackend implements ConversationBackend {
   async onUserMessageReceived(threadId: string, message: string): Promise<void> {
     // Store the user message in the conversation state immediately,
     // so the conversation is non-empty even before the turn completes.
-    await prisma.chatConversation.upsert({
-      where: {
-        participantId_threadId: {
+    // Use updateMany to silently no-op if the record doesn't exist yet
+    // (getOrCreateConversation may not have committed yet on serverless).
+    try {
+      await prisma.chatConversation.updateMany({
+        where: {
           participantId: this.participantId,
           threadId,
         },
-      },
-      create: {
-        threadId,
-        participantId: this.participantId,
-        stageId: this.stageId,
-        provider: this.provider,
-        state: {
-          _pendingUserMessage: message,
-          _pendingAt: new Date().toISOString(),
+        data: {
+          state: {
+            _pendingUserMessage: message,
+            _pendingAt: new Date().toISOString(),
+          },
         },
-      },
-      update: {
-        state: {
-          _pendingUserMessage: message,
-          _pendingAt: new Date().toISOString(),
-        },
-      },
-    });
+      });
+    } catch {
+      // Silently ignore — the turn completion will persist the full state anyway
+    }
   }
 
   async listThreads(): Promise<{ threads: ThreadMeta[] }> {
