@@ -293,6 +293,7 @@ function chatTestsFor(providerLabel: string) {
 
     await sendMessage(chatPage, "What was the 5-letter code in the image I sent earlier?");
     await waitForStreamingDone(chatPage);
+    await chatPage.waitForTimeout(3000); // wait for smooth text animation to finish
     await logConversation(chatPage);
 
     const messages = chatPage.locator(".aui-assistant-message-content");
