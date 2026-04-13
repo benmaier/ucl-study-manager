@@ -99,9 +99,15 @@ export async function getChatConfig(options?: { useFallback?: boolean }): Promis
     model,
   );
 
+  // Fallback provider/model — passed to widget config for SDK-level retry (when supported)
+  const fallbackProvider = options?.useFallback ? undefined : participant?.cohort.fallbackProvider;
+  const fallbackModel = options?.useFallback ? undefined : participant?.cohort.fallbackModel;
+
   return {
     backend,
     model,
     apiBasePath: "/api",
+    ...(fallbackProvider ? { fallbackProvider: fallbackProvider as "anthropic" | "openai" | "gemini" } : {}),
+    ...(fallbackModel ? { fallbackModel } : {}),
   };
 }
