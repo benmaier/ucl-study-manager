@@ -133,7 +133,7 @@ function analysisTest(providerLabel: string) {
 
     await sendMessage(
       chatPage,
-      "Plot f(x) = x^2 * exp(-x^2) for x from -4 to 4. Show me the plot. Also save the plotted data (x and y values) as a file called data.csv that I can download.",
+      "Plot f(x) = x^2 * exp(-x^2) for x from -4 to 4 and save the plot as a png file. Also save the plotted data (x and y values) as a file called data.csv.",
     );
     await waitForStreamingDone(chatPage);
     stopExpand();
