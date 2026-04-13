@@ -10,7 +10,7 @@ import { DatabaseConversationBackend } from "@/lib/database-conversation-backend
  * Determines the participant's current stage from DB progress
  * (started but not completed). Conversations are scoped to that stage.
  */
-export async function getChatConfig(): Promise<ChatRouteConfig> {
+export async function getChatConfig(options?: { useFallback?: boolean }): Promise<ChatRouteConfig> {
   const cookieStore = await cookies();
   const participantId = cookieStore.get("participant_id")?.value;
 
@@ -28,6 +28,8 @@ export async function getChatConfig(): Promise<ChatRouteConfig> {
         select: {
           provider: true,
           model: true,
+          fallbackProvider: true,
+          fallbackModel: true,
           stages: {
             select: {
               id: true,
@@ -52,15 +54,24 @@ export async function getChatConfig(): Promise<ChatRouteConfig> {
     return hasChatbot && prog && !prog.completedAt;
   });
 
-  // Provider + model resolution: stage config > cohort default
   const stageConfig = currentChatStage?.config as Record<string, unknown> | undefined;
-  const provider = (
-    (stageConfig?.provider as string) ||
-    participant?.cohort.provider ||
-    "anthropic"
-  ) as "anthropic" | "openai" | "gemini";
 
-  const model = (stageConfig?.model as string) || participant?.cohort.model || undefined;
+  // Provider + model resolution: stage config > cohort default > fallback
+  let provider: "anthropic" | "openai" | "gemini";
+  let model: string | undefined;
+
+  if (options?.useFallback && participant?.cohort.fallbackProvider) {
+    provider = participant.cohort.fallbackProvider as "anthropic" | "openai" | "gemini";
+    model = participant.cohort.fallbackModel || undefined;
+    console.log(`[chat-config] Using fallback: ${provider} ${model}`);
+  } else {
+    provider = (
+      (stageConfig?.provider as string) ||
+      participant?.cohort.provider ||
+      "anthropic"
+    ) as "anthropic" | "openai" | "gemini";
+    model = (stageConfig?.model as string) || participant?.cohort.model || undefined;
+  }
 
   const stageId = currentChatStage?.id || 0;
 
