@@ -1,9 +1,21 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import ReactMarkdown from "react-markdown";
 import rehypeRaw from "rehype-raw";
 import remarkGfm from "remark-gfm";
+
+// Document Picture-in-Picture API — not in stock TS DOM types yet.
+interface DocumentPictureInPictureAPI {
+  requestWindow(options?: { width?: number; height?: number }): Promise<Window>;
+  window: Window | null;
+}
+declare global {
+  interface Window {
+    documentPictureInPicture?: DocumentPictureInPictureAPI;
+  }
+}
 
 interface StageData {
   id: number;
@@ -48,6 +60,71 @@ export default function StudyView({
   const [inputValue, setInputValue] = useState("");
   const [saveStatus, setSaveStatus] = useState<"" | "saving" | "saved">("");
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [pipWindow, setPipWindow] = useState<Window | null>(null);
+  const [pipSupported, setPipSupported] = useState(false);
+  const pipWindowRef = useRef<Window | null>(null);
+
+  useEffect(() => {
+    setPipSupported("documentPictureInPicture" in window);
+  }, []);
+
+  useEffect(() => {
+    pipWindowRef.current = pipWindow;
+  }, [pipWindow]);
+
+  const openPip = useCallback(async () => {
+    if (!window.documentPictureInPicture) return;
+    // Idempotent — safe to call when PiP is already open.
+    if (pipWindowRef.current && !pipWindowRef.current.closed) return;
+    try {
+      const win = await window.documentPictureInPicture.requestWindow({
+        width: 240,
+        height: 120,
+      });
+
+      win.document.title = "Timer";
+      // Don't clone parent stylesheets — Tailwind utilities conflict with the
+      // tiny fixed layout. Pure inline styles are more predictable here.
+      // Make the body itself the centered container.
+      // Clear anything the UA injected into the PiP body (some Chromium
+      // builds put debug/back-to-tab elements there which then become flex
+      // siblings and push our content out of center).
+      win.document.body.innerHTML = "";
+      const bs = win.document.body.style;
+      bs.setProperty("margin", "0", "important");
+      bs.setProperty("padding", "0", "important");
+      bs.setProperty("min-height", "100vh", "important");
+      bs.setProperty("display", "flex", "important");
+      bs.setProperty("align-items", "center", "important");
+      bs.setProperty("justify-content", "center", "important");
+      bs.setProperty("background-color", "#fffff9", "important");
+      bs.setProperty(
+        "font-family",
+        'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+        "important"
+      );
+      // Some Chromium builds ignore the initial size hint; nudge it post-open.
+      try { win.resizeTo(240, 120); } catch { /* best-effort */ }
+      requestAnimationFrame(() => {
+        try { win.resizeTo(240, 120); } catch { /* best-effort */ }
+      });
+      win.addEventListener("pagehide", () => setPipWindow(null));
+      setPipWindow(win);
+    } catch {
+      // User dismissed the request, or API call failed.
+    }
+  }, []);
+
+  const closePip = useCallback(() => {
+    pipWindow?.close();
+    setPipWindow(null);
+  }, [pipWindow]);
+
+  useEffect(() => {
+    return () => {
+      pipWindowRef.current?.close();
+    };
+  }, []);
 
   // Re-fetch progress on mount (handles Cmd+Shift+T / tab restore)
   useEffect(() => {
@@ -299,8 +376,65 @@ export default function StudyView({
             {timerExpired && (
               <p className="text-xs text-gray-500 text-center mt-1">Time&apos;s up!</p>
             )}
+            {pipSupported && (
+              <button
+                onClick={pipWindow ? closePip : openPip}
+                className="w-full mt-3 rounded-[5px] border border-input-border px-3 py-1.5 text-xs text-heading hover:bg-gray-100 active:bg-gray-200 transition-colors"
+              >
+                {pipWindow ? "Close floating timer" : "Open floating timer"}
+              </button>
+            )}
           </div>
         )}
+
+        {/* Floating timer portal */}
+        {pipWindow &&
+          createPortal(
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                textAlign: "center",
+                padding: "0 12px",
+              }}
+            >
+              <p
+                style={{
+                  fontSize: "12px",
+                  color: "#6b7280",
+                  margin: 0,
+                  marginBottom: 2,
+                  maxWidth: "100%",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {currentStage?.title ?? ""}
+              </p>
+              <p
+                data-testid="pip-countdown"
+                style={{
+                  fontSize: "32px",
+                  fontVariantNumeric: "tabular-nums",
+                  fontFamily:
+                    'ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, Monaco, monospace',
+                  lineHeight: 1,
+                  margin: 0,
+                  color: timerExpired ? "#324624" : "#152509",
+                }}
+              >
+                {timerExpired ? "00:00" : formatTime(remaining ?? 0)}
+              </p>
+              {timerExpired && (
+                <p style={{ fontSize: "11px", color: "#6b7280", margin: 0, marginTop: 4 }}>
+                  Time&apos;s up!
+                </p>
+              )}
+            </div>,
+            pipWindow.document.body
+          )}
 
         {/* Test user controls */}
         {isTestUser && (
@@ -357,7 +491,7 @@ export default function StudyView({
                 )}
                 <div className="mb-8">
                   <button
-                    onClick={() => window.open("/chat", "_blank")}
+                    onClick={() => { window.open("/chat", "_blank"); openPip(); }}
                     className="rounded-[5px] bg-btn-active-bg px-6 py-3 text-sm font-medium text-btn-active-text"
                   >
                     Open AI Assistant
