@@ -23,6 +23,15 @@ describe("stage markdown rendering", () => {
     expect(html).toContain('<a href="https://example.com/survey">survey</a>');
   });
 
+  it("renders markdown links whose URL contains the <USER_ID> placeholder", () => {
+    // Guards against a past regression where a link wouldn't render at all
+    // because the URL contained angle-bracket characters from the template.
+    const html = renderStageMarkdown(
+      "[Open the cognitive test](https://cognitive-test.example.com/?user=<USER_ID>)"
+    );
+    expect(html).toMatch(/<a href="[^"]*cognitive-test[^"]*">Open the cognitive test<\/a>/);
+  });
+
   it("renders raw HTML anchor tags (rehype-raw)", () => {
     const html = renderStageMarkdown('Click <a href="https://example.com/test">test link</a> to continue.');
     expect(html).toContain('<a href="https://example.com/test">test link</a>');
