@@ -126,6 +126,19 @@ export default function StudyView({
     };
   }, []);
 
+  // Pin the study page in history — back becomes a no-op. Prevents the
+  // back button from dropping participants onto the login page mid-study.
+  // Uses capture phase so we fire before Next.js's router listener.
+  useEffect(() => {
+    const pinnedUrl = window.location.href;
+    window.history.pushState(null, "", pinnedUrl);
+    const onPop = () => {
+      window.history.pushState(null, "", pinnedUrl);
+    };
+    window.addEventListener("popstate", onPop, true);
+    return () => window.removeEventListener("popstate", onPop, true);
+  }, []);
+
   // Re-fetch progress on mount (handles Cmd+Shift+T / tab restore)
   useEffect(() => {
     fetch("/api/auth/me")
