@@ -9,6 +9,7 @@ import type {
 import type { ConversationBackend, ThreadMeta } from "ucl-chat-widget/server";
 import { prisma } from "./prisma";
 import { DatabaseWriter } from "./database-writer";
+import { assignApiKey } from "./key-pool";
 import pg from "pg";
 
 /**
@@ -120,6 +121,10 @@ export class DatabaseConversationBackend implements ConversationBackend {
       });
     }
     return this.pool;
+  }
+
+  async getApiKey(provider: "anthropic" | "openai" | "gemini"): Promise<string | undefined> {
+    return (await assignApiKey(this.participantId, provider)) ?? undefined;
   }
 
   artifactsDirForThread(threadId: string): string {
@@ -307,15 +312,34 @@ export class DatabaseConversationBackend implements ConversationBackend {
   }
 
   async updateThreadTitle(threadId: string, title: string): Promise<void> {
-    await prisma.chatConversation.update({
-      where: {
-        participantId_threadId: {
-          participantId: this.participantId,
-          threadId,
-        },
-      },
-      data: { title },
-    });
+    // Title generation on the first turn can finish before the widget's
+    // getOrCreateConversation flow has upserted the row. Retry briefly on
+    // P2025 (record-not-found) so we don't lose the title to that race.
+    const delaysMs = [150, 300, 600, 900];
+    for (let attempt = 0; ; attempt++) {
+      try {
+        await prisma.chatConversation.update({
+          where: {
+            participantId_threadId: {
+              participantId: this.participantId,
+              threadId,
+            },
+          },
+          data: { title },
+        });
+        return;
+      } catch (e: unknown) {
+        const code =
+          typeof e === "object" && e !== null && "code" in e
+            ? (e as { code?: string }).code
+            : undefined;
+        if (code === "P2025" && attempt < delaysMs.length) {
+          await new Promise((r) => setTimeout(r, delaysMs[attempt]));
+          continue;
+        }
+        throw e;
+      }
+    }
   }
 
   async getConversationData(
