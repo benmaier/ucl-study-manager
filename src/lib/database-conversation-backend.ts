@@ -269,6 +269,36 @@ export class DatabaseConversationBackend implements ConversationBackend {
     return fallback;
   }
 
+  /**
+   * Called by the widget after a fallback provider switch has succeeded.
+   * Writes an audit row so we can later answer "how often did fallback fire,
+   * for which cohort, for what reason" without relying on Vercel's stdout
+   * log retention.
+   *
+   * `primaryProvider` is whatever this backend instance was constructed
+   * with; `fallbackProvider` is read off the (just-swapped) cached
+   * Conversation, which at this point is the fallback instance.
+   */
+  async onFallbackUsed(
+    threadId: string,
+    reason: "send-error" | "empty-exhausted",
+    primaryError?: Error,
+  ): Promise<void> {
+    const fallbackConv = this.cache.get(threadId);
+    const fallbackProvider = fallbackConv?.getProvider() ?? "unknown";
+    await prisma.fallbackEvent.create({
+      data: {
+        threadId,
+        participantId: this.participantId,
+        stageId: this.stageId,
+        reason,
+        primaryProvider: this.provider,
+        fallbackProvider,
+        primaryErrorMessage: primaryError?.message ?? null,
+      },
+    });
+  }
+
   async onUserMessageReceived(threadId: string, message: string): Promise<void> {
     // Store the user message in the conversation state immediately,
     // so the conversation is non-empty even before the turn completes.
