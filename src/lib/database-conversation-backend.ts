@@ -221,6 +221,54 @@ export class DatabaseConversationBackend implements ConversationBackend {
     return conversation;
   }
 
+  /**
+   * Build a fallback Conversation on a different provider for an existing
+   * thread. Called by the widget when the primary provider fails. The
+   * serialized state is re-hydrated with the new provider/model/key and
+   * returned with fresh writers attached.
+   *
+   * After this resolves, the in-process cache points at the fallback
+   * instance, so subsequent getOrCreateConversation() calls skip the
+   * failing primary.
+   */
+  async createFallbackConversation(
+    threadId: string,
+    provider: "anthropic" | "openai" | "gemini",
+    model?: string,
+  ): Promise<Conversation> {
+    const existing = await prisma.chatConversation.findUnique({
+      where: {
+        participantId_threadId: {
+          participantId: this.participantId,
+          threadId,
+        },
+      },
+    });
+    if (!existing?.state) {
+      throw new Error(
+        `createFallbackConversation: no stored state for thread ${threadId}`
+      );
+    }
+
+    const apiKey = (await assignApiKey(this.participantId, provider)) ?? undefined;
+
+    const writers: ConversationWriter[] = [
+      new StateWriter(this.participantId, this.stageId, threadId),
+      new DatabaseWriter(this.getPool(), this.participantId, this.stageId, this.stageFileHashes),
+    ];
+
+    const fallback = await Conversation.resume(existing.state as any, {
+      provider,
+      model,
+      apiKey,
+      writers,
+    });
+
+    // Evict + replace so the next getOrCreateConversation returns this one.
+    this.cache.set(threadId, fallback);
+    return fallback;
+  }
+
   async onUserMessageReceived(threadId: string, message: string): Promise<void> {
     // Store the user message in the conversation state immediately,
     // so the conversation is non-empty even before the turn completes.
