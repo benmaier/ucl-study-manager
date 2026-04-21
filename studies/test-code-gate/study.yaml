@@ -1,0 +1,22 @@
+id: test_code_gate
+title: "Test: Code-to-Progress Gate"
+description: "Minimal study used by e2e tests for the code_to_progress stage field."
+
+stages:
+  - id: gated
+    title: "Gated Stage"
+    duration: "0:01"
+    content: content/stage.md
+    confirmation: "I have entered the completion code."
+    code_to_progress: "SECRET-123"
+
+  - id: ungated
+    title: "Ungated Stage"
+    duration: "0:01"
+    content: content/stage.md
+    confirmation: "I confirm."
+
+  - id: end
+    title: "End"
+    duration: "0:01"
+    content: content/stage.md

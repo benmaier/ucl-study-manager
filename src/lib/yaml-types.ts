@@ -43,6 +43,7 @@ export interface RawCohortStageOverride {
   input?: { label: string; prompt?: string } | null;
   confirmation?: string | null;
   sidebar_panels?: { title: string; content: string; defaultExpanded?: boolean }[] | null;
+  code_to_progress?: string | null;
 }
 
 export interface RawStageFile {
@@ -66,6 +67,7 @@ export interface RawStage {
   };
   confirmation?: string;
   sidebar_panels?: { title: string; content: string; defaultExpanded?: boolean }[];
+  code_to_progress?: string;
 }
 
 // ── Parsed & validated types (ready for DB import) ──
@@ -103,6 +105,7 @@ export interface ParsedStage {
   input: { label: string; prompt: string | null } | null;
   confirmation: string | null;
   sidebarPanels: { title: string; content: string; defaultExpanded?: boolean }[];
+  codeToProgress: string | null;
 }
 
 export interface ParsedStageFile {

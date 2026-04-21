@@ -115,6 +115,36 @@ describe("mergeStages", () => {
     const result = mergeStages(baseWithQuestions, overrides, "test");
     expect(result[0].questions).toEqual(["Q3"]);
   });
+
+  it("inherits code_to_progress from base stage", () => {
+    const baseWithCode: RawStage[] = [
+      { id: "s1", title: "S1", duration: "1:00", code_to_progress: "XYZ123" },
+    ];
+    const result = mergeStages(baseWithCode, undefined, "test");
+    expect(result[0].code_to_progress).toBe("XYZ123");
+  });
+
+  it("cohort override can set code_to_progress on a base stage", () => {
+    const base: RawStage[] = [
+      { id: "s1", title: "S1", duration: "1:00" },
+    ];
+    const overrides: RawCohortStageOverride[] = [
+      { id: "s1", code_to_progress: "ABC789" },
+    ];
+    const result = mergeStages(base, overrides, "test");
+    expect(result[0].code_to_progress).toBe("ABC789");
+  });
+
+  it("cohort override can remove code_to_progress with null", () => {
+    const baseWithCode: RawStage[] = [
+      { id: "s1", title: "S1", duration: "1:00", code_to_progress: "XYZ123" },
+    ];
+    const overrides: RawCohortStageOverride[] = [
+      { id: "s1", code_to_progress: null },
+    ];
+    const result = mergeStages(baseWithCode, overrides, "test");
+    expect(result[0].code_to_progress).toBeUndefined();
+  });
 });
 
 describe("parseStudyYaml (example study)", () => {
