@@ -250,6 +250,7 @@ When a stage has `chatbot: true`:
 | `input` | Text input: `{label, prompt?}`. Omit = no input field. |
 | `confirmation` | Confirmation checkbox text |
 | `sidebar_panels` | Chat sidebar panels: `[{title, content, defaultExpanded?}]` |
+| `code_to_progress` | Optional completion code string. When set, a text input renders and the submit button stays disabled until the participant enters this exact code. Universal across participants, distinct per stage — typical use is a Qualtrics end-of-survey code. |
 | `skip` | `true` to remove this base stage (cohort overrides only) |
 | `after` | Insert after this stage ID (new stages only) |
 | `before` | Insert before this stage ID (new stages only) |

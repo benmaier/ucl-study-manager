@@ -58,6 +58,7 @@ export default function StudyView({
   const [remaining, setRemaining] = useState<number | null>(null);
   const [confirmed, setConfirmed] = useState(false);
   const [inputValue, setInputValue] = useState("");
+  const [codeInput, setCodeInput] = useState("");
   const [saveStatus, setSaveStatus] = useState<"" | "saving" | "saved">("");
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [pipWindow, setPipWindow] = useState<Window | null>(null);
@@ -215,6 +216,7 @@ export default function StudyView({
   // Reset confirmed + load saved input on stage change
   useEffect(() => {
     setConfirmed(false);
+    setCodeInput("");
     setSaveStatus("");
     // Load previously saved input for this stage
     if (currentStage) {
@@ -601,10 +603,35 @@ export default function StudyView({
             : hasInput
               ? "Submit your answer and proceed"
               : "Proceed";
+          const requiredCode = (currentStage?.config?.codeToProgress as string | null | undefined) || null;
+          const codeOk = !requiredCode || codeInput.trim() === requiredCode.trim();
+          const codeFieldUi = requiredCode ? (
+            <div className="space-y-1">
+              <label
+                htmlFor="code-to-progress-input"
+                className={`block text-sm font-medium ${timerExpired ? "text-heading" : "text-gray-400"}`}
+              >
+                Completion code
+              </label>
+              <input
+                id="code-to-progress-input"
+                type="text"
+                value={codeInput}
+                onChange={(e) => setCodeInput(e.target.value)}
+                disabled={!timerExpired}
+                placeholder="Enter the code shown at the end of the task"
+                className="w-full max-w-xs rounded-[5px] border border-input-border px-3 py-2 text-sm text-body outline-none focus:ring-2 focus:ring-input-border disabled:bg-gray-100 disabled:text-gray-400"
+              />
+              {timerExpired && codeInput.length > 0 && !codeOk && (
+                <p className="text-xs text-red-600">Code doesn&apos;t match — check for typos.</p>
+              )}
+            </div>
+          ) : null;
 
           if (Boolean(currentStage?.config?.confirmation)) {
             return (
               <div className="mt-8 space-y-3">
+                {codeFieldUi}
                 <label className={`flex items-start gap-2 text-sm ${timerExpired ? "text-body cursor-pointer" : "text-gray-400"}`}>
                   <input
                     type="checkbox"
@@ -616,10 +643,10 @@ export default function StudyView({
                   {currentStage!.config.confirmation as string}
                 </label>
                 <button
-                  disabled={!timerExpired || !confirmed}
+                  disabled={!timerExpired || !confirmed || !codeOk}
                   onClick={completeStage}
                   className={`rounded-[5px] px-6 py-3 text-sm ${
-                    timerExpired && confirmed
+                    timerExpired && confirmed && codeOk
                       ? "bg-btn-active-bg text-btn-active-text hover:opacity-90"
                       : "bg-btn-inactive-bg text-btn-inactive-text"
                   }`}
@@ -631,12 +658,13 @@ export default function StudyView({
           }
 
           return (
-            <div className="mt-8">
+            <div className="mt-8 space-y-3">
+              {codeFieldUi}
               <button
-                disabled={!timerExpired}
+                disabled={!timerExpired || !codeOk}
                 onClick={completeStage}
                 className={`rounded-[5px] px-6 py-3 text-sm ${
-                  timerExpired
+                  timerExpired && codeOk
                     ? "bg-btn-active-bg text-btn-active-text font-medium hover:opacity-90"
                     : "bg-btn-inactive-bg text-btn-inactive-text"
                 }`}

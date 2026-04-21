@@ -294,6 +294,22 @@ export default function AdminPreviewPage() {
             </div>
           )}
 
+          {/* Completion code (preview only shows the field — doesn't enforce in admin preview) */}
+          {stage.codeToProgress && (
+            <div className="mb-4 space-y-1">
+              <label className="block text-sm font-medium text-heading">Completion code</label>
+              <input
+                type="text"
+                disabled
+                placeholder={`Participants must enter: ${stage.codeToProgress}`}
+                className="w-full max-w-xs rounded-[5px] border border-input-border px-3 py-2 text-sm text-gray-500 bg-gray-50 italic"
+              />
+              <p className="text-xs text-gray-400">
+                In the participant view, submit is blocked until this code is entered.
+              </p>
+            </div>
+          )}
+
           {/* Confirmation */}
           {stage.confirmation && (
             <div className="mb-8 space-y-3">
