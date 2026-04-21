@@ -131,4 +131,81 @@ test.describe("DatabaseConversationBackend.createFallbackConversation", () => {
 
     await prisma.$disconnect();
   });
+
+  test("onFallbackUsed writes an audit row to fallback_events", async () => {
+    const participant = await prisma.participant.findUnique({
+      where: { identifier: TEST_USER! },
+      include: { cohort: { include: { stages: true } } },
+    });
+    if (!participant) throw new Error(`Test participant ${TEST_USER} not found`);
+    const stageId = participant.cohort.stages[0]?.id;
+    if (!stageId) throw new Error("Test user's cohort has no stages");
+
+    const threadId = `fallback-audit-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+
+    // Seed a thread so createFallbackConversation can resume it.
+    const seedState = {
+      id: threadId,
+      provider: "anthropic" as const,
+      turns: [],
+      uploads: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      textHistory: [],
+      formatVersion: 1,
+    };
+    await prisma.chatConversation.create({
+      data: {
+        participantId: participant.id,
+        threadId,
+        stageId,
+        provider: "anthropic",
+        state: seedState,
+      },
+    });
+
+    try {
+      const backend = new DatabaseConversationBackend(
+        participant.id,
+        stageId,
+        "anthropic",
+        undefined,
+      );
+
+      // Realistic ordering: widget swaps to fallback first, then fires the hook.
+      await backend.createFallbackConversation(threadId, "gemini", "gemini-2.5-flash");
+      await backend.onFallbackUsed(
+        threadId,
+        "send-error",
+        new Error("Anthropic API returned 401"),
+      );
+
+      const rows = await prisma.fallbackEvent.findMany({
+        where: { threadId, participantId: participant.id },
+      });
+      expect(rows).toHaveLength(1);
+      const row = rows[0];
+      expect(row.reason).toBe("send-error");
+      expect(row.primaryProvider).toBe("anthropic");
+      expect(row.fallbackProvider).toBe("gemini");
+      expect(row.primaryErrorMessage).toBe("Anthropic API returned 401");
+      expect(row.stageId).toBe(stageId);
+    } finally {
+      // Order matters — fallback_events FK cascades from participant, not
+      // from chat_conversation, so deleting the ChatConversation alone
+      // leaves the audit row behind. Clean it up explicitly.
+      await prisma.fallbackEvent.deleteMany({
+        where: { threadId, participantId: participant.id },
+      });
+      await prisma.chatConversation.delete({
+        where: {
+          participantId_threadId: {
+            participantId: participant.id,
+            threadId,
+          },
+        },
+      });
+      await prisma.$disconnect();
+    }
+  });
 });

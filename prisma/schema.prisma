@@ -57,11 +57,12 @@ model Stage {
   config      Json   @default("{}")  // everything else: chatbot, questions, input, link, confirmation, files, etc.
   cohortId    Int    @map("cohort_id")
 
-  cohort        Cohort              @relation(fields: [cohortId], references: [id], onDelete: Cascade)
-  files         StageFile[]
-  progress      ParticipantProgress[]
-  chatLogs      ChatLog[]
-  conversations ChatConversation[]
+  cohort         Cohort              @relation(fields: [cohortId], references: [id], onDelete: Cascade)
+  files          StageFile[]
+  progress       ParticipantProgress[]
+  chatLogs       ChatLog[]
+  conversations  ChatConversation[]
+  fallbackEvents FallbackEvent[]
 
   @@unique([cohortId, stageId])
   @@map("stages")
@@ -102,11 +103,12 @@ model Participant {
   cohortId   Int      @map("cohort_id")
   createdAt  DateTime @default(now()) @map("created_at")
 
-  session       StudySession          @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  cohort        Cohort                @relation(fields: [cohortId], references: [id], onDelete: Cascade)
-  progress      ParticipantProgress[]
-  chatLogs      ChatLog[]
-  conversations ChatConversation[]
+  session        StudySession          @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  cohort         Cohort                @relation(fields: [cohortId], references: [id], onDelete: Cascade)
+  progress       ParticipantProgress[]
+  chatLogs       ChatLog[]
+  conversations  ChatConversation[]
+  fallbackEvents FallbackEvent[]
 
   @@map("participants")
 }
@@ -178,4 +180,26 @@ model ChatFileLog {
   chatLog ChatLog @relation(fields: [chatLogId], references: [id], onDelete: Cascade)
 
   @@map("chat_file_logs")
+}
+
+// Audit row written each time a chat thread switches from its primary
+// provider to the cohort's configured fallback — fired by the widget's
+// onFallbackUsed hook after a successful fallback.
+model FallbackEvent {
+  id                  Int      @id @default(autoincrement())
+  threadId            String   @map("thread_id")
+  participantId       Int      @map("participant_id")
+  stageId             Int      @map("stage_id")
+  reason              String   // "send-error" | "empty-exhausted"
+  primaryProvider     String   @map("primary_provider")
+  fallbackProvider    String   @map("fallback_provider")
+  primaryErrorMessage String?  @map("primary_error_message")
+  createdAt           DateTime @default(now()) @map("created_at")
+
+  participant Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  stage       Stage       @relation(fields: [stageId], references: [id], onDelete: Cascade)
+
+  @@index([participantId, threadId])
+  @@index([createdAt])
+  @@map("fallback_events")
 }
