@@ -475,6 +475,11 @@ export default function StudyView({
       <main className="flex-1 p-12 overflow-y-auto">
         <h1 className="text-4xl font-normal text-heading mb-6">
           {currentStage?.title}
+          {Boolean(currentStage?.config?.pay) && (
+            <span className="text-gray-400">
+              {" | "}Pay: {currentStage!.config.pay as string}
+            </span>
+          )}
         </h1>
 
         {/* Chatbot button (at top if chatbot enabled but no placeholder in content) */}
