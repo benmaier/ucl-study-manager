@@ -145,6 +145,36 @@ describe("mergeStages", () => {
     const result = mergeStages(baseWithCode, overrides, "test");
     expect(result[0].code_to_progress).toBeUndefined();
   });
+
+  it("inherits pay from base stage", () => {
+    const baseWithPay: RawStage[] = [
+      { id: "s1", title: "S1", duration: "1:00", pay: "15 GBP" },
+    ];
+    const result = mergeStages(baseWithPay, undefined, "test");
+    expect(result[0].pay).toBe("15 GBP");
+  });
+
+  it("cohort override can set pay on a base stage", () => {
+    const base: RawStage[] = [
+      { id: "s1", title: "S1", duration: "1:00" },
+    ];
+    const overrides: RawCohortStageOverride[] = [
+      { id: "s1", pay: "20 GBP" },
+    ];
+    const result = mergeStages(base, overrides, "test");
+    expect(result[0].pay).toBe("20 GBP");
+  });
+
+  it("cohort override can remove pay with null", () => {
+    const baseWithPay: RawStage[] = [
+      { id: "s1", title: "S1", duration: "1:00", pay: "15 GBP" },
+    ];
+    const overrides: RawCohortStageOverride[] = [
+      { id: "s1", pay: null },
+    ];
+    const result = mergeStages(baseWithPay, overrides, "test");
+    expect(result[0].pay).toBeUndefined();
+  });
 });
 
 describe("parseStudyYaml (example study)", () => {

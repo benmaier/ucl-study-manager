@@ -141,7 +141,7 @@ export function mergeStages(
   const overrideFields = [
     "title", "duration", "content", "chatbot", "provider", "model",
     "files", "questions", "input", "confirmation", "sidebar_panels",
-    "code_to_progress",
+    "code_to_progress", "pay",
   ] as const;
 
   for (const o of fieldOverrides) {
@@ -263,6 +263,7 @@ function resolveStages(
         defaultExpanded: p.defaultExpanded,
       })),
       codeToProgress: s.code_to_progress ?? null,
+      pay: s.pay ?? null,
     };
   });
 }

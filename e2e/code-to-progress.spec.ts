@@ -94,6 +94,11 @@ test.describe("code_to_progress gate", () => {
     // On the gated first stage. Wait for timer to expire (1s duration).
     await page.waitForTimeout(1500);
 
+    // H1 should display the pay amount after the title.
+    const heading = page.getByRole("heading", { level: 1 });
+    await expect(heading).toContainText("Gated Stage");
+    await expect(heading).toContainText("Pay: 15 GBP");
+
     // Completion code input must be visible + enabled.
     const codeInput = page.getByLabel("Completion code", { exact: true });
     await expect(codeInput).toBeVisible();
@@ -124,7 +129,9 @@ test.describe("code_to_progress gate", () => {
     await page.waitForTimeout(500);
     await expect(page.getByRole("heading", { name: "Ungated Stage" })).toBeVisible({ timeout: 10_000 });
 
-    // Ungated stage should NOT show a completion code field.
+    // Ungated stage should NOT show a completion code field — and its H1
+    // should NOT show "Pay:" text (fixture only sets pay on the gated stage).
     await expect(page.getByLabel("Completion code")).toHaveCount(0);
+    await expect(page.getByRole("heading", { level: 1, name: /Pay:/ })).toHaveCount(0);
   });
 });

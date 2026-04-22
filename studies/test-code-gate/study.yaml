@@ -9,6 +9,7 @@ stages:
     content: content/stage.md
     confirmation: "I have entered the completion code."
     code_to_progress: "SECRET-123"
+    pay: "15 GBP"
 
   - id: ungated
     title: "Ungated Stage"

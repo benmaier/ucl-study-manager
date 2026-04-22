@@ -251,6 +251,7 @@ When a stage has `chatbot: true`:
 | `confirmation` | Confirmation checkbox text |
 | `sidebar_panels` | Chat sidebar panels: `[{title, content, defaultExpanded?}]` |
 | `code_to_progress` | Optional completion code string. When set, a text input renders and the submit button stays disabled until the participant enters this exact code. Universal across participants, distinct per stage — typical use is a Qualtrics end-of-survey code. |
+| `pay` | Optional payment amount string (e.g. `"15 GBP"`, `"£10"`). When set, renders as muted `\| Pay: {pay}` text at the end of the stage's H1 title. Display-only — the platform does not calculate or pay anything; this just shows participants what they'll earn for the stage. |
 | `skip` | `true` to remove this base stage (cohort overrides only) |
 | `after` | Insert after this stage ID (new stages only) |
 | `before` | Insert before this stage ID (new stages only) |

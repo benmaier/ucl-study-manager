@@ -191,7 +191,12 @@ export default function AdminPreviewPage() {
             {stage.chatbot && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">chatbot</span>}
           </div>
 
-          <h1 className="text-4xl font-normal text-heading mb-6">{stage.title}</h1>
+          <h1 className="text-4xl font-normal text-heading mb-6">
+            {stage.title}
+            {stage.pay && (
+              <span className="text-gray-400">{" | "}Pay: {stage.pay}</span>
+            )}
+          </h1>
 
           {/* Chatbot button (at top if enabled but no placeholder in content) */}
           {stage.chatbot && !stage.contentText?.includes("<AI_ASSISTANT_BUTTON>") && (
