@@ -194,7 +194,7 @@ export default function AdminPreviewPage() {
           <h1 className="text-4xl font-normal text-heading mb-6">
             {stage.title}
             {stage.pay && (
-              <span className="text-gray-400">{" | "}Pay: {stage.pay}</span>
+              <span className="text-study-muted">{" | "}Pay: {stage.pay}</span>
             )}
           </h1>
 

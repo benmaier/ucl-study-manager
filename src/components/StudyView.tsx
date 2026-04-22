@@ -347,42 +347,57 @@ export default function StudyView({
   return (
     <div className="flex min-h-screen">
       {/* Schedule sidebar */}
-      <aside className="w-[260px] bg-study-sidebar-bg border-r border-gray-200 p-6 shrink-0 flex flex-col sticky top-0 h-screen overflow-y-auto">
-        <h2 className="text-lg font-normal text-heading mb-4">Schedule</h2>
-        <div className="space-y-1.5 flex-1">
+      <aside className="w-[280px] bg-study-sidebar-bg border-r border-gray-200 p-6 shrink-0 flex flex-col sticky top-0 h-screen overflow-y-auto">
+        <h2 className="text-[28px] font-normal text-heading leading-none mb-5 tracking-tight">Schedule</h2>
+        <ol className="space-y-2 flex-1">
           {stages.map((stage, i) => {
             const prog = progress.find((p) => p.stageId === stage.id);
             const isCompleted = !!prog?.completedAt;
             const isCurrent = i === currentStageIndex;
             const minutes = Math.floor(stage.duration / 60);
 
+            const bulletClasses = isCompleted
+              ? "bg-study-muted"
+              : isCurrent
+                ? "bg-btn-active-bg"
+                : "border-[1.5px] border-btn-active-bg";
+            const titleClasses = isCompleted
+              ? "text-study-muted line-through decoration-[1.5px]"
+              : "text-heading";
+            const durationClasses = isCompleted
+              ? "text-study-muted"
+              : "text-study-muted";
+
             return (
-              <div key={stage.id} className="flex items-start gap-2">
-                <span className="flex items-center h-5 shrink-0">
-                  <span
-                    className={`w-2.5 h-2.5 rounded-full ${
-                      isCompleted
-                        ? "bg-gray-400"
-                        : isCurrent
-                          ? "bg-btn-active-bg"
-                          : "border-2 border-gray-400"
-                    }`}
-                  />
-                </span>
+              <li
+                key={stage.id}
+                className="flex items-baseline gap-x-2 text-[15px] leading-[1.35]"
+              >
+                {/* Bullet — sits on text baseline via translate nudge rather than
+                    flex-item baseline, which is fragile for empty elements. */}
                 <span
-                  className={`text-sm flex-1 ${
-                    isCompleted ? "text-gray-400 line-through" : isCurrent ? "text-black font-medium" : "text-black"
-                  }`}
-                >
+                  aria-hidden
+                  className={`w-[9px] h-[9px] rounded-full shrink-0 self-center ${bulletClasses}`}
+                />
+                <span className={`truncate ${titleClasses}`}>
                   {stage.title}
                 </span>
-                <span className="text-sm text-gray-500 tabular-nums shrink-0 h-5 flex items-center">
+                {/* Leader line: flex-1 fills the gap. With items-baseline on
+                    the row, an empty span's baseline sits at its top edge,
+                    which flexbox aligns to the siblings' text baseline —
+                    border-bottom then draws 1px below that, matching where
+                    an underline naturally sits. No pixel nudges needed. */}
+                <span
+                  aria-hidden
+                  className="flex-1 min-w-[0.75rem] border-b border-dotted border-study-muted"
+                />
+                <span className={`tabular-nums shrink-0 ${durationClasses}`}>
                   {minutes} min
                 </span>
-              </div>
+              </li>
             );
           })}
-        </div>
+        </ol>
 
         {/* Timer */}
         {remaining !== null && (
@@ -478,7 +493,7 @@ export default function StudyView({
         <h1 className="text-4xl font-normal text-heading mb-6">
           {currentStage?.title}
           {Boolean(currentStage?.config?.pay) && (
-            <span className="text-gray-400">
+            <span className="text-study-muted">
               {" | "}Pay: {currentStage!.config.pay as string}
             </span>
           )}
