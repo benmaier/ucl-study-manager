@@ -357,16 +357,18 @@ export default function StudyView({
             const minutes = Math.floor(stage.duration / 60);
 
             return (
-              <div key={stage.id} className="flex items-center gap-2">
-                <span
-                  className={`w-2.5 h-2.5 rounded-full shrink-0 ${
-                    isCompleted
-                      ? "bg-gray-400"
-                      : isCurrent
-                        ? "bg-btn-active-bg"
-                        : "border-2 border-gray-400"
-                  }`}
-                />
+              <div key={stage.id} className="flex items-start gap-2">
+                <span className="flex items-center h-5 shrink-0">
+                  <span
+                    className={`w-2.5 h-2.5 rounded-full ${
+                      isCompleted
+                        ? "bg-gray-400"
+                        : isCurrent
+                          ? "bg-btn-active-bg"
+                          : "border-2 border-gray-400"
+                    }`}
+                  />
+                </span>
                 <span
                   className={`text-sm flex-1 ${
                     isCompleted ? "text-gray-400 line-through" : isCurrent ? "text-black font-medium" : "text-black"
@@ -374,7 +376,7 @@ export default function StudyView({
                 >
                   {stage.title}
                 </span>
-                <span className="text-sm text-gray-500 tabular-nums">
+                <span className="text-sm text-gray-500 tabular-nums shrink-0 h-5 flex items-center">
                   {minutes} min
                 </span>
               </div>
