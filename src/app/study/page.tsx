@@ -3,6 +3,11 @@ import { cookies } from "next/headers";
 import { getParticipant } from "@/lib/auth";
 import StudyView from "@/components/StudyView";
 
+// Always re-render on each request so back/forward navigation lands the
+// participant on the correct stage with current progress, rather than a
+// stale cached snapshot.
+export const dynamic = "force-dynamic";
+
 export default async function StudyPage() {
   const participant = await getParticipant();
 
