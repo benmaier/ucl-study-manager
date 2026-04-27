@@ -47,9 +47,16 @@ export default async function globalSetup() {
   if (!startRes.ok) throw new Error(`Start stage failed: ${startRes.status}`);
   console.log(`[setup] Started stage ${firstStageId}`);
 
-  // Verify chat is available
+  // Verify chat is available — soft check. Many tests don't need chat;
+  // only throw if the caller has opted in via the REQUIRE_CHAT env var.
   const statusRes = await fetch(`${BASE_URL}/api/chat/status`, { headers: { Cookie: cookies } });
   const status = await statusRes.json();
-  if (!status.available) throw new Error(`Chat not available after setup: ${JSON.stringify(status)}`);
-  console.log(`[setup] Chat available on stage ${status.stageId}`);
+  if (!status.available) {
+    if (process.env.REQUIRE_CHAT) {
+      throw new Error(`Chat not available after setup: ${JSON.stringify(status)}`);
+    }
+    console.log(`[setup] Chat not available — continuing (non-chat study).`);
+  } else {
+    console.log(`[setup] Chat available on stage ${status.stageId}`);
+  }
 }
