@@ -10,8 +10,12 @@ export async function getParticipant() {
     where: { id: parseInt(pid, 10) },
     include: {
       cohort: {
+        // `stages.files` (StageFile rows) intentionally not included — no
+        // /study or auth caller reads it; file metadata lives in
+        // stage.config already. Dropping the join saves a lot of bytes
+        // when stages have files attached.
         include: {
-          stages: { include: { files: true }, orderBy: { order: "asc" } },
+          stages: { orderBy: { order: "asc" } },
         },
       },
       session: { include: { study: true } },
