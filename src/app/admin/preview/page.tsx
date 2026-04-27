@@ -2,9 +2,7 @@
 
 import { useState, useEffect } from "react";
 import type { ParsedStudy, ParsedCohort, ParsedStage } from "@/lib/yaml-types";
-import ReactMarkdown from "react-markdown";
-import rehypeRaw from "rehype-raw";
-import remarkGfm from "remark-gfm";
+import { StageMarkdown } from "@/components/StageMarkdown";
 
 export default function AdminPreviewPage() {
   const [study, setStudy] = useState<ParsedStudy | null>(null);
@@ -218,7 +216,7 @@ export default function AdminPreviewPage() {
                 <>
                   {parts[0] && (
                     <div className={mdClasses}>
-                      <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>{parts[0]}</ReactMarkdown>
+                      <StageMarkdown>{parts[0]}</StageMarkdown>
                     </div>
                   )}
                   <div className="mb-8">
@@ -228,7 +226,7 @@ export default function AdminPreviewPage() {
                   </div>
                   {parts.slice(1).join("").trim() && (
                     <div className={mdClasses}>
-                      <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>{parts.slice(1).join("")}</ReactMarkdown>
+                      <StageMarkdown>{parts.slice(1).join("")}</StageMarkdown>
                     </div>
                   )}
                 </>
@@ -237,7 +235,7 @@ export default function AdminPreviewPage() {
 
             return (
               <div className={mdClasses}>
-                <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>{stage.contentText!}</ReactMarkdown>
+                <StageMarkdown>{stage.contentText!}</StageMarkdown>
               </div>
             );
           })()}

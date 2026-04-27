@@ -620,8 +620,8 @@ export default function AdminPage() {
                 <div key={r.row} className={`flex gap-2 ${r.status === "error" ? "text-red-600" : r.status === "reassign" ? "text-amber-700" : r.status === "update_password" ? "text-blue-600" : "text-body"}`}>
                   <span className="text-gray-400 w-8 shrink-0">#{r.row}</span>
                   <span className="w-36 shrink-0 truncate">{r.user}</span>
-                  <span className="w-28 shrink-0">{r.studyId}/{r.cohortId}</span>
-                  <span className="truncate">{r.message}</span>
+                  <span className="w-56 shrink-0 truncate" title={`${r.studyId}/${r.cohortId}`}>{r.studyId}/{r.cohortId}</span>
+                  <span className="flex-1 min-w-0 truncate">{r.message}</span>
                 </div>
               ))}
             </div>

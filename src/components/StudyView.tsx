@@ -2,9 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
-import ReactMarkdown from "react-markdown";
-import rehypeRaw from "rehype-raw";
-import remarkGfm from "remark-gfm";
+import { StageMarkdown } from "./StageMarkdown";
 
 // Document Picture-in-Picture API — not in stock TS DOM types yet.
 interface DocumentPictureInPictureAPI {
@@ -523,7 +521,7 @@ export default function StudyView({
               <>
                 {parts[0] && (
                   <div className={mdClasses}>
-                    <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>{parts[0]}</ReactMarkdown>
+                    <StageMarkdown>{parts[0]}</StageMarkdown>
                   </div>
                 )}
                 <div className="mb-8">
@@ -536,7 +534,7 @@ export default function StudyView({
                 </div>
                 {parts.slice(1).join("").trim() && (
                   <div className={mdClasses}>
-                    <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>{parts.slice(1).join("")}</ReactMarkdown>
+                    <StageMarkdown>{parts.slice(1).join("")}</StageMarkdown>
                   </div>
                 )}
               </>
@@ -545,9 +543,7 @@ export default function StudyView({
 
           return (
             <div className={mdClasses}>
-              <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
-                {currentStage.contentText!}
-              </ReactMarkdown>
+              <StageMarkdown>{currentStage.contentText!}</StageMarkdown>
             </div>
           );
         })()}
