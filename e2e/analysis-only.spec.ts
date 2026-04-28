@@ -10,6 +10,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import path from "path";
 import { fileURLToPath } from "url";
+import { resetSharedUser } from "./lib/reset-shared-user";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -26,6 +27,9 @@ const TEST_TIMEOUT = 240_000; // 4 minutes per test
 const CLOSE_WAIT = 5_000;
 
 test.setTimeout(TEST_TIMEOUT);
+
+// Reset smoke-lotus-eagle to stage 1 — see study-flow.spec.ts for context.
+test.beforeAll(resetSharedUser);
 
 async function login(page: Page) {
   await page.goto("/");

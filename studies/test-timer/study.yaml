@@ -1,0 +1,10 @@
+id: test_timer
+title: "Test: Timer back/forward"
+description: "Minimal study used by the timer-back-forward e2e tests. Single long-duration stage so the timer is still ticking when each test reads it."
+
+stages:
+  - id: long_timer
+    title: "Long Timer Stage"
+    duration: "5:00"
+    content: content/stage.md
+    confirmation: "I confirm."

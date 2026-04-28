@@ -12,6 +12,7 @@
  */
 
 import { test, expect, type Page } from "@playwright/test";
+import { resetSharedUser } from "./lib/reset-shared-user";
 
 const TEST_USER = process.env.TEST_USER;
 const TEST_PASS = process.env.TEST_PASS;
@@ -21,6 +22,10 @@ if (!TEST_USER || !TEST_PASS) {
 }
 
 test.setTimeout(120_000);
+
+// Earlier specs (study-flow, analysis-only) leave smoke-lotus-eagle on
+// "Thank you!" — reset back to stage 1 so the chatbot is reachable.
+test.beforeAll(resetSharedUser);
 
 async function login(page: Page) {
   await page.goto("/");

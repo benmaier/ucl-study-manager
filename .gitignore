@@ -16,3 +16,5 @@ exports/
 ucl-study-llm-chat-api/
 ucl-study-llm-chat-ui/
 
+old-db-keys.json
+test-results/
