@@ -14,6 +14,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import path from "path";
 import { fileURLToPath } from "url";
+import { resetSharedUser } from "./lib/reset-shared-user";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -31,6 +32,11 @@ const TEST_TIMEOUT = 120_000;      // max time per test
 const CLOSE_WAIT = 2_000;          // pause before closing chat window
 
 test.setTimeout(TEST_TIMEOUT);
+
+// Reset smoke-lotus-eagle to stage 1 before any test in this file —
+// other specs that share this user (e.g. analysis-only) may have advanced
+// it past the chatbot stages by the time we run.
+test.beforeAll(resetSharedUser);
 
 // ---------------------------------------------------------------------------
 // Helpers
