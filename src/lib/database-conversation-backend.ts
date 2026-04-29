@@ -257,7 +257,18 @@ export class DatabaseConversationBackend implements ConversationBackend {
       new DatabaseWriter(this.getPool(), this.participantId, this.stageId, this.stageFileHashes),
     ];
 
-    const fallback = await Conversation.resume(existing.state as any, {
+    // Model names are provider-specific. If the saved state was for a
+    // different provider, drop its `model` field before resume() so the
+    // SDK's `model: options.model ?? validated.model` fallback can't
+    // carry e.g. "gemini-3-flash" into OpenAI. Mirrors the same scrub
+    // applied to FileConversationBackend in widget v0.3.20.
+    const savedState = existing.state as Record<string, unknown>;
+    const stateForResume =
+      savedState.provider && savedState.provider !== provider
+        ? { ...savedState, model: undefined }
+        : savedState;
+
+    const fallback = await Conversation.resume(stateForResume as any, {
       provider,
       model,
       apiKey,
