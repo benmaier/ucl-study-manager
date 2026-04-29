@@ -161,18 +161,38 @@ export class DatabaseConversationBackend implements ConversationBackend {
       const turns = state.turns as unknown[] | undefined;
 
       if (turns && turns.length > 0) {
+        // Sticky-fallback resume. If a prior turn already flipped this
+        // thread to a different provider (e.g. anthropic → openai), the
+        // saved state is the only memory of that flip across Vercel
+        // function recycles. Resume on the *saved* provider — otherwise
+        // every cold start coerces the conversation back to the cohort's
+        // primary and re-runs the original failure. Re-resolve the api
+        // key for the saved provider; drop `model` since model names
+        // are provider-specific.
+        const savedProvider = state.provider as
+          | "anthropic"
+          | "openai"
+          | "gemini"
+          | undefined;
+        const sticky = !!savedProvider && savedProvider !== this.provider;
+        const resumeProvider = sticky ? savedProvider! : this.provider;
+        const resumeKey = sticky
+          ? (await assignApiKey(this.participantId, savedProvider!)) ?? undefined
+          : this.apiKey;
+        const resumeModel = sticky ? undefined : this.model;
+
         try {
           conversation = await Conversation.resume(state as any, {
-            provider: this.provider,
-            model: this.model,
-            apiKey: this.apiKey,
+            provider: resumeProvider,
+            model: resumeModel,
+            apiKey: resumeKey,
             writers,
           });
         } catch {
           conversation = new Conversation({
-            provider: this.provider,
-            model: this.model,
-            apiKey: this.apiKey,
+            provider: resumeProvider,
+            model: resumeModel,
+            apiKey: resumeKey,
             id: threadId,
             writers,
           });

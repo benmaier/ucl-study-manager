@@ -57,7 +57,34 @@ afterAll(async () => {
   await prisma.$disconnect();
 });
 
-function seedState(provider: "anthropic" | "openai" | "gemini", model: string): SerializedConversation {
+function seedState(
+  provider: "anthropic" | "openai" | "gemini",
+  model: string,
+  withTurn = false,
+): SerializedConversation {
+  const turns = withTurn
+    ? [
+        {
+          turnNumber: 1,
+          startedAt: new Date().toISOString(),
+          completedAt: new Date().toISOString(),
+          userMessage: "hi",
+          attachedFileIds: [],
+          assistantText: "hello",
+          codeArtifacts: [],
+          generatedFiles: [],
+          provider,
+          model,
+          providerStateAfter: {},
+        },
+      ]
+    : [];
+  const textHistory = withTurn
+    ? [
+        { role: "user" as const, content: "hi" },
+        { role: "assistant" as const, content: "hello" },
+      ]
+    : [];
   return {
     formatVersion: 1,
     id: "fixture-conv-id",
@@ -66,8 +93,8 @@ function seedState(provider: "anthropic" | "openai" | "gemini", model: string): 
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     uploads: [],
-    turns: [],
-    textHistory: [],
+    turns,
+    textHistory,
   } as unknown as SerializedConversation;
 }
 
@@ -128,6 +155,31 @@ describe("DatabaseConversationBackend", () => {
     const next = await backend.getOrCreateConversation(threadId);
     expect(next).toBe(fallback);
     expect(next.getProvider()).toBe("openai");
+  });
+
+  it("getOrCreateConversation sticks to the saved provider after a cold start", async () => {
+    // Simulates a Vercel function recycle: the previous request flipped
+    // the thread to OpenAI, persisted state with provider="openai", and
+    // the function instance died. A new request comes in with a fresh
+    // backend instance whose `this.provider` is the cohort's primary
+    // (still anthropic). The DB is the only memory of the flip. We need
+    // resume() to honor the saved provider — otherwise every cold start
+    // re-tries the broken primary and the user sees errors forever.
+    const threadId = `${RUN_ID}-sticky`;
+    await seedThread(
+      threadId,
+      seedState("openai", "gpt-4o-mini-fixture", /* withTurn */ true),
+    );
+
+    const backend = new DatabaseConversationBackend(
+      participantId,
+      stageId,
+      "anthropic",
+      "fake-anthropic-key",
+    );
+
+    const resumed = await backend.getOrCreateConversation(threadId);
+    expect(resumed.getProvider()).toBe("openai");
   });
 
   it("onFallbackUsed writes exactly one fallback_events row with the right fields", async () => {
