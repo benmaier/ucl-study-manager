@@ -265,9 +265,19 @@ export default function StudyView({
     autoSave(value);
   };
 
-  // Timer must be loaded AND expired. Before timer loads, everything stays disabled.
+  // Per-stage flags (default true to preserve historical behavior).
+  // `show_timer`: render the live MM:SS countdown + floating-timer button.
+  // `allow_proceeding_only_when_timer_expired`: gate submit on timer = 0.
+  // The sidebar's static "X min" still renders from `duration` either way.
+  const showTimer = (currentStage?.config?.showTimer as boolean | undefined) ?? true;
+  const allowProceedingOnlyWhenTimerExpired =
+    (currentStage?.config?.allowProceedingOnlyWhenTimerExpired as boolean | undefined) ?? true;
+
+  // Timer must be loaded AND expired. Before timer loads, everything stays
+  // disabled — unless the stage is configured to not gate on the timer, in
+  // which case proceed-state is unlocked immediately.
   const timerLoaded = remaining !== null;
-  const timerExpired = timerLoaded && remaining <= 0;
+  const timerExpired = !allowProceedingOnlyWhenTimerExpired || (timerLoaded && remaining <= 0);
 
   const completeStage = async () => {
     if (!currentStage) return;
@@ -414,8 +424,8 @@ export default function StudyView({
           })}
         </ol>
 
-        {/* Timer */}
-        {remaining !== null && (
+        {/* Live countdown — only when show_timer is on AND we have a remaining value */}
+        {showTimer && remaining !== null && (
           <div className="border-t border-gray-200 pt-4 mt-4">
             <p className={`text-2xl font-mono tabular-nums text-center ${timerExpired ? "text-btn-active-bg" : "text-heading"}`}>
               {timerExpired ? "00:00" : formatTime(remaining)}
@@ -434,8 +444,10 @@ export default function StudyView({
           </div>
         )}
 
-        {/* Floating timer portal */}
-        {pipWindow &&
+        {/* Floating timer portal — also gated by show_timer so a no-timer
+            stage doesn't keep painting a stale countdown into an
+            already-open PIP window from a previous stage. */}
+        {showTimer && pipWindow &&
           createPortal(
             <div
               style={{
@@ -543,7 +555,10 @@ export default function StudyView({
                 )}
                 <div className="mb-8">
                   <button
-                    onClick={() => { window.open("/chat", "_blank"); openPip(); }}
+                    onClick={() => {
+                      window.open("/chat", "_blank");
+                      if (showTimer) openPip();
+                    }}
                     className="rounded-[5px] bg-btn-active-bg px-6 py-3 text-sm font-medium text-btn-active-text"
                   >
                     Open AI Assistant
