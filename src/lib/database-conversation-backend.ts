@@ -338,23 +338,25 @@ export class DatabaseConversationBackend implements ConversationBackend {
   }
 
   async onUserMessageReceived(threadId: string, message: string): Promise<void> {
-    // Store the user message in the conversation state immediately,
-    // so the conversation is non-empty even before the turn completes.
-    // Use updateMany to silently no-op if the record doesn't exist yet
-    // (getOrCreateConversation may not have committed yet on serverless).
+    // Merge the pending markers into the existing state with a JSONB `||`,
+    // rather than replacing state wholesale. Replacing was destructive on
+    // turn 2+: it wiped the previous turn's `formatVersion`/`turns`/...
+    // payload, and any path that reloaded the conversation afterwards
+    // tripped `validateSerializedConversation: missing or invalid
+    // formatVersion`.
+    //
+    // COALESCE guards the row-doesn't-exist-yet case (no rows match → 0
+    // rows updated, same effective behavior as the prior updateMany).
+    const pendingJson = JSON.stringify({
+      _pendingUserMessage: message,
+      _pendingAt: new Date().toISOString(),
+    });
     try {
-      await prisma.chatConversation.updateMany({
-        where: {
-          participantId: this.participantId,
-          threadId,
-        },
-        data: {
-          state: {
-            _pendingUserMessage: message,
-            _pendingAt: new Date().toISOString(),
-          },
-        },
-      });
+      await prisma.$executeRaw`
+        UPDATE chat_conversations
+        SET state = COALESCE(state, '{}'::jsonb) || ${pendingJson}::jsonb
+        WHERE participant_id = ${this.participantId} AND thread_id = ${threadId}
+      `;
     } catch {
       // Silently ignore — the turn completion will persist the full state anyway
     }

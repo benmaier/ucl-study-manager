@@ -240,6 +240,43 @@ describe("DatabaseConversationBackend", () => {
     expect(resumed.getProvider()).toBe("openai");
   });
 
+  it("onUserMessageReceived merges pending markers without wiping existing state", async () => {
+    // Regression: previously the handler did a full `state` replacement,
+    // destroying the prior turn's `formatVersion`/`turns`/... payload.
+    // Any path that reloaded the conversation afterwards tripped
+    // `validateSerializedConversation: missing or invalid formatVersion`.
+    const threadId = `${RUN_ID}-merge`;
+    await seedThread(
+      threadId,
+      seedState("anthropic", "claude-haiku-4-5-20251001", /* withTurn */ true),
+    );
+
+    const backend = new DatabaseConversationBackend(
+      participantId,
+      stageId,
+      "anthropic",
+      "fake-anthropic-key",
+    );
+
+    await backend.onUserMessageReceived(threadId, "second message");
+
+    const row = await prisma.chatConversation.findUnique({
+      where: {
+        participantId_threadId: { participantId, threadId },
+      },
+    });
+    const state = row?.state as Record<string, unknown> | null;
+    expect(state).toBeTruthy();
+    // Pending markers landed.
+    expect(state!._pendingUserMessage).toBe("second message");
+    expect(typeof state!._pendingAt).toBe("string");
+    // Prior turn's payload survived.
+    expect(state!.formatVersion).toBe(1);
+    expect(Array.isArray(state!.turns)).toBe(true);
+    expect((state!.turns as unknown[]).length).toBe(1);
+    expect(state!.provider).toBe("anthropic");
+  });
+
   it("onFallbackUsed writes exactly one fallback_events row with the right fields", async () => {
     const threadId = `${RUN_ID}-event`;
     await seedThread(threadId, seedState("anthropic", FAKE_PRIMARY_MODEL));
