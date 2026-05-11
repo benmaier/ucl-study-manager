@@ -142,6 +142,7 @@ export function mergeStages(
     "title", "duration", "content", "chatbot", "provider", "model",
     "files", "questions", "input", "confirmation", "sidebar_panels",
     "code_to_progress", "pay",
+    "show_timer", "allow_proceeding_only_when_timer_expired",
   ] as const;
 
   for (const o of fieldOverrides) {
@@ -264,6 +265,9 @@ function resolveStages(
       })),
       codeToProgress: s.code_to_progress ?? null,
       pay: s.pay ?? null,
+      showTimer: s.show_timer ?? true,
+      allowProceedingOnlyWhenTimerExpired:
+        s.allow_proceeding_only_when_timer_expired ?? true,
     };
   });
 }

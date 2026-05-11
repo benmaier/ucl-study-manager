@@ -175,6 +175,33 @@ describe("mergeStages", () => {
     const result = mergeStages(baseWithPay, overrides, "test");
     expect(result[0].pay).toBeUndefined();
   });
+
+  it("cohort override can disable show_timer and proceed-gate independently", () => {
+    const base: RawStage[] = [
+      { id: "s1", title: "S1", duration: "1:00" },
+    ];
+    const overrides: RawCohortStageOverride[] = [
+      {
+        id: "s1",
+        show_timer: false,
+        allow_proceeding_only_when_timer_expired: false,
+      },
+    ];
+    const result = mergeStages(base, overrides, "test");
+    expect(result[0].show_timer).toBe(false);
+    expect(result[0].allow_proceeding_only_when_timer_expired).toBe(false);
+  });
+
+  it("cohort override can re-enable show_timer on a base stage that turned it off", () => {
+    const base: RawStage[] = [
+      { id: "s1", title: "S1", duration: "1:00", show_timer: false },
+    ];
+    const overrides: RawCohortStageOverride[] = [
+      { id: "s1", show_timer: true },
+    ];
+    const result = mergeStages(base, overrides, "test");
+    expect(result[0].show_timer).toBe(true);
+  });
 });
 
 describe("parseStudyYaml (example study)", () => {
@@ -189,6 +216,16 @@ describe("parseStudyYaml (example study)", () => {
     const study = parseStudyYaml(EXAMPLE_STUDY);
     const ids = study.cohorts.map((c) => c.cohortId).sort();
     expect(ids).toEqual(["anthropic_untrained", "gemini_trained", "no_ai_trained", "no_ai_untrained"]);
+  });
+
+  it("defaults show_timer and allow_proceeding_only_when_timer_expired to true", () => {
+    const study = parseStudyYaml(EXAMPLE_STUDY);
+    for (const c of study.cohorts) {
+      for (const s of c.stages) {
+        expect(s.showTimer).toBe(true);
+        expect(s.allowProceedingOnlyWhenTimerExpired).toBe(true);
+      }
+    }
   });
 
   it("no_ai_untrained inherits base flow unchanged", () => {

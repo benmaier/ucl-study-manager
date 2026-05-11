@@ -45,6 +45,8 @@ export interface RawCohortStageOverride {
   sidebar_panels?: { title: string; content: string; defaultExpanded?: boolean }[] | null;
   code_to_progress?: string | null;
   pay?: string | null;
+  show_timer?: boolean | null;
+  allow_proceeding_only_when_timer_expired?: boolean | null;
 }
 
 export interface RawStageFile {
@@ -70,6 +72,10 @@ export interface RawStage {
   sidebar_panels?: { title: string; content: string; defaultExpanded?: boolean }[];
   code_to_progress?: string;
   pay?: string;
+  /** Show the live MM:SS countdown + floating-timer button in the stage UI. Default true. */
+  show_timer?: boolean;
+  /** Gate the submit button on the timer reaching 0. Default true. When false, submit unlocks as soon as confirmation/input is satisfied. */
+  allow_proceeding_only_when_timer_expired?: boolean;
 }
 
 // ── Parsed & validated types (ready for DB import) ──
@@ -109,6 +115,8 @@ export interface ParsedStage {
   sidebarPanels: { title: string; content: string; defaultExpanded?: boolean }[];
   codeToProgress: string | null;
   pay: string | null;
+  showTimer: boolean;
+  allowProceedingOnlyWhenTimerExpired: boolean;
 }
 
 export interface ParsedStageFile {
