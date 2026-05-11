@@ -198,17 +198,24 @@ export class DatabaseConversationBackend implements ConversationBackend {
           });
         }
       } else {
+        // Existing row but no turns yet (e.g. only `_pendingUserMessage`
+        // from a prior aborted request). Treat as a fresh Conversation,
+        // but still honor the cohort's configured model — otherwise the
+        // SDK falls back to its hardcoded default (e.g. `gemini-2.5-flash`)
+        // and `cohort.model` is silently ignored on turn 1.
         conversation = new Conversation({
           provider: this.provider,
+          model: this.model,
           apiKey: this.apiKey,
           id: threadId,
           writers,
         });
       }
     } else {
-      // Brand new conversation
+      // Brand new conversation — same model-preservation note as above.
       conversation = new Conversation({
         provider: this.provider,
+        model: this.model,
         apiKey: this.apiKey,
         id: threadId,
         writers,
