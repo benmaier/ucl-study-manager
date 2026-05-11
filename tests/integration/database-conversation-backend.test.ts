@@ -111,6 +111,64 @@ async function seedThread(threadId: string, state: SerializedConversation): Prom
 }
 
 describe("DatabaseConversationBackend", () => {
+  it("getOrCreateConversation preserves cohort model on a brand-new conversation", async () => {
+    // Regression: previously the new-Conversation paths didn't pass
+    // `this.model`, so the SDK fell back to its hardcoded default
+    // (e.g. "gemini-2.5-flash") and the cohort's configured model was
+    // silently ignored on turn 1.
+    const threadId = `${RUN_ID}-fresh`;
+    const COHORT_MODEL = "claude-haiku-4-5-20251001";
+
+    const backend = new DatabaseConversationBackend(
+      participantId,
+      stageId,
+      "anthropic",
+      "fake-anthropic-key",
+      new Map(),
+      COHORT_MODEL,
+    );
+
+    const conv = await backend.getOrCreateConversation(threadId);
+    expect(conv.getProvider()).toBe("anthropic");
+
+    // Inspect the private `model` field — must be the cohort model.
+    const model = (conv as unknown as { model?: string }).model;
+    expect(model).toBe(COHORT_MODEL);
+  });
+
+  it("getOrCreateConversation preserves cohort model when an existing row has no turns yet", async () => {
+    // Same regression for the "row exists but turns is empty" path —
+    // hit when a previous request wrote a `_pendingUserMessage` marker
+    // but never completed a turn.
+    const threadId = `${RUN_ID}-pending-only`;
+    const COHORT_MODEL = "claude-haiku-4-5-20251001";
+    await prisma.chatConversation.create({
+      data: {
+        threadId,
+        participantId,
+        stageId,
+        provider: "anthropic",
+        state: {
+          _pendingUserMessage: "earlier aborted message",
+          _pendingAt: new Date().toISOString(),
+        },
+      },
+    });
+
+    const backend = new DatabaseConversationBackend(
+      participantId,
+      stageId,
+      "anthropic",
+      "fake-anthropic-key",
+      new Map(),
+      COHORT_MODEL,
+    );
+
+    const conv = await backend.getOrCreateConversation(threadId);
+    const model = (conv as unknown as { model?: string }).model;
+    expect(model).toBe(COHORT_MODEL);
+  });
+
   it("createFallbackConversation scrubs the primary's model when crossing providers", async () => {
     const threadId = `${RUN_ID}-scrub`;
     await seedThread(threadId, seedState("anthropic", FAKE_PRIMARY_MODEL));
