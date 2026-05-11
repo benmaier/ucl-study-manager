@@ -169,6 +169,67 @@ describe("DatabaseConversationBackend", () => {
     expect(model).toBe(COHORT_MODEL);
   });
 
+  it("createFallbackConversation builds a fresh Conversation when no prior row exists", async () => {
+    // Regression: previously this threw "no stored state for thread …"
+    // and the widget surfaced it as an error banner on turn 1. Hit when
+    // the cohort primary fails (e.g. invalid model name) before any
+    // chat_conversations row has been written.
+    const threadId = `${RUN_ID}-no-row`;
+
+    const backend = new DatabaseConversationBackend(
+      participantId,
+      stageId,
+      "gemini",
+      "fake-gemini-key",
+      new Map(),
+      "gemini-3-flash",
+    );
+
+    const fallback = await backend.createFallbackConversation(
+      threadId,
+      "anthropic",
+      "claude-haiku-4-5-20251001",
+    );
+    expect(fallback.getProvider()).toBe("anthropic");
+    // The fallback gets the model we passed, not the primary's invalid one.
+    const model = (fallback as unknown as { model?: string }).model;
+    expect(model).toBe("claude-haiku-4-5-20251001");
+  });
+
+  it("createFallbackConversation builds a fresh Conversation when the row has only pending markers", async () => {
+    // Same regression but for the row-exists-but-empty path (e.g. after
+    // onUserMessageReceived wrote pending markers on the very first turn).
+    const threadId = `${RUN_ID}-pending-only-fallback`;
+    await prisma.chatConversation.create({
+      data: {
+        threadId,
+        participantId,
+        stageId,
+        provider: "gemini",
+        state: {
+          _pendingUserMessage: "first message",
+          _pendingAt: new Date().toISOString(),
+        },
+      },
+    });
+
+    const backend = new DatabaseConversationBackend(
+      participantId,
+      stageId,
+      "gemini",
+      "fake-gemini-key",
+      new Map(),
+      "gemini-3-flash",
+    );
+
+    const fallback = await backend.createFallbackConversation(
+      threadId,
+      "anthropic",
+      "claude-haiku-4-5-20251001",
+    );
+    expect(fallback.getProvider()).toBe("anthropic");
+  });
+
   it("createFallbackConversation scrubs the primary's model when crossing providers", async () => {
     const threadId = `${RUN_ID}-scrub`;
     await seedThread(threadId, seedState("anthropic", FAKE_PRIMARY_MODEL));

@@ -271,11 +271,6 @@ export class DatabaseConversationBackend implements ConversationBackend {
         },
       },
     });
-    if (!existing?.state) {
-      throw new Error(
-        `createFallbackConversation: no stored state for thread ${threadId}`
-      );
-    }
 
     const apiKey = (await assignApiKey(this.participantId, provider)) ?? undefined;
 
@@ -284,23 +279,40 @@ export class DatabaseConversationBackend implements ConversationBackend {
       new DatabaseWriter(this.getPool(), this.participantId, this.stageId, this.stageFileHashes),
     ];
 
-    // Model names are provider-specific. If the saved state was for a
-    // different provider, drop its `model` field before resume() so the
-    // SDK's `model: options.model ?? validated.model` fallback can't
-    // carry e.g. "gemini-3-flash" into OpenAI. Mirrors the same scrub
-    // applied to FileConversationBackend in widget v0.3.20.
-    const savedState = existing.state as Record<string, unknown>;
-    const stateForResume =
-      savedState.provider && savedState.provider !== provider
-        ? { ...savedState, model: undefined }
-        : savedState;
+    // No prior turns to resume from? Build a fresh Conversation on the
+    // fallback provider. This branch fires when the primary fails on
+    // turn 1 (the chat_conversations row may exist with an empty/pending
+    // state, or not exist at all yet). Without it the widget surfaces
+    // "createFallbackConversation: no stored state for thread …".
+    const savedState = existing?.state as Record<string, unknown> | null;
+    const turns = savedState?.turns as unknown[] | undefined;
+    let fallback: Conversation;
+    if (!savedState || !turns || turns.length === 0) {
+      fallback = new Conversation({
+        provider,
+        model,
+        apiKey,
+        id: threadId,
+        writers,
+      });
+    } else {
+      // Model names are provider-specific. If the saved state was for a
+      // different provider, drop its `model` field before resume() so the
+      // SDK's `model: options.model ?? validated.model` fallback can't
+      // carry e.g. "gemini-3-flash" into OpenAI. Mirrors the same scrub
+      // applied to FileConversationBackend in widget v0.3.20.
+      const stateForResume =
+        savedState.provider && savedState.provider !== provider
+          ? { ...savedState, model: undefined }
+          : savedState;
 
-    const fallback = await Conversation.resume(stateForResume as any, {
-      provider,
-      model,
-      apiKey,
-      writers,
-    });
+      fallback = await Conversation.resume(stateForResume as any, {
+        provider,
+        model,
+        apiKey,
+        writers,
+      });
+    }
 
     // Evict + replace so the next getOrCreateConversation returns this one.
     this.cache.set(threadId, fallback);
