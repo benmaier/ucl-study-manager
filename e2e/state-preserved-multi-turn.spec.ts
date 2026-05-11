@@ -72,7 +72,9 @@ async function sendAndWait(chat: Page, text: string, filePath?: string) {
   await input.pressSequentially(text, { delay: 10 });
   await chat.waitForTimeout(300);
   const sendBtn = chat.locator(".aui-composer-send");
-  await expect.poll(() => sendBtn.isEnabled(), { timeout: 10_000 }).toBe(true);
+  // File uploads can take a while on prod (cold start + upload),
+  // during which the send button stays disabled. Give it room.
+  await expect.poll(() => sendBtn.isEnabled(), { timeout: 30_000 }).toBe(true);
   await sendBtn.click();
   await expect.poll(() => messages.count(), { timeout: 120_000 }).toBe(before + 1);
   await chat.waitForTimeout(500);
@@ -104,9 +106,11 @@ test("text turn 1 → file-attach turn 2 in the same thread succeeds without 'in
 
   await chat.close();
 
-  // Poll for the persisted state to settle (onTurnComplete fires after
-  // the UI stream-close signal).
-  const deadline = Date.now() + 10_000;
+  // Poll for the persisted state to settle. `onTurnComplete` fires
+  // slightly after the UI stream-close signal; on prod (cold start +
+  // LLM round-trip) that gap can be longer than locally, so give the
+  // poll a generous deadline.
+  const deadline = Date.now() + 30_000;
   type State = { formatVersion?: number; turns?: unknown[] };
   let state: State | null = null;
   while (Date.now() < deadline) {

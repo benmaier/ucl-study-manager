@@ -68,20 +68,27 @@ test("first chat turn records the cohort's model on chat_logs", async ({ page })
 
   // Send a one-shot text message in the chat widget.
   const chat = await openChat(page);
+  await chat.bringToFront();
+  const messages = chat.locator(".aui-assistant-message-root");
   const input = chat.locator(".aui-composer-input");
   await input.click();
   await input.pressSequentially("hi", { delay: 10 });
-  await input.press("Enter");
-  // Wait for the send icon to reappear (= streaming finished).
-  await chat
-    .locator(".aui-composer-send-icon")
-    .waitFor({ state: "visible", timeout: 90_000 });
+  await chat.waitForTimeout(300);
+  // Click the send button rather than rely on Enter (more reliable on
+  // the assistant-ui composer) and wait for an actual assistant message
+  // to appear rather than the send-icon toggle (which is misleading).
+  const sendBtn = chat.locator(".aui-composer-send");
+  await expect.poll(() => sendBtn.isEnabled(), { timeout: 10_000 }).toBe(true);
+  await sendBtn.click();
+  await expect.poll(() => messages.count(), { timeout: 120_000 }).toBe(1);
+  await chat.waitForTimeout(500);
   await chat.close();
 
-  // Poll for the assistant chat_log row — `onTurnComplete` runs after the
-  // stream closes from the widget's perspective, so the DB write can land
-  // slightly later than the UI signal.
-  const deadline = Date.now() + 10_000;
+  // Poll for the assistant chat_log row. The DB write via
+  // `onTurnComplete` runs slightly after the UI signal — and on prod
+  // (cold start + LLM round-trip) that gap can be longer than locally,
+  // so give it a generous deadline.
+  const deadline = Date.now() + 30_000;
   let log: { model: string | null } | null = null;
   while (Date.now() < deadline) {
     log = await prisma.chatLog.findFirst({

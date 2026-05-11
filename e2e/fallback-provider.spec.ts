@@ -106,7 +106,12 @@ test.describe("DatabaseConversationBackend.createFallbackConversation", () => {
     }
   });
 
-  test("throws when the thread has no stored state", async () => {
+  test("builds a fresh Conversation on the fallback provider when the thread has no stored state", async () => {
+    // Previously this path threw "no stored state for thread …", which
+    // the widget then surfaced as an error banner on turn 1 whenever the
+    // cohort primary failed before any turn had completed. The contract
+    // now is: no stored state ⇒ build a fresh Conversation on the
+    // fallback provider so the widget can stream a real response.
     const participant = await prisma.participant.findUnique({
       where: { identifier: TEST_USER! },
       include: { cohort: { include: { stages: true } } },
@@ -122,12 +127,11 @@ test.describe("DatabaseConversationBackend.createFallbackConversation", () => {
       undefined,
     );
 
-    await expect(
-      backend.createFallbackConversation(
-        `nonexistent-thread-${Date.now()}`,
-        "gemini",
-      ),
-    ).rejects.toThrow(/no stored state/);
+    const fallback = await backend.createFallbackConversation(
+      `nonexistent-thread-${Date.now()}`,
+      "gemini",
+    );
+    expect(fallback.getProvider()).toBe("gemini");
 
     await prisma.$disconnect();
   });
