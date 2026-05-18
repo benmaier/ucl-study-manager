@@ -273,11 +273,16 @@ export default function StudyView({
   const allowProceedingOnlyWhenTimerExpired =
     (currentStage?.config?.allowProceedingOnlyWhenTimerExpired as boolean | undefined) ?? true;
 
-  // Timer must be loaded AND expired. Before timer loads, everything stays
-  // disabled — unless the stage is configured to not gate on the timer, in
-  // which case proceed-state is unlocked immediately.
+  // Two related-but-distinct concepts. Keeping them separate so the
+  // visible countdown still shows the *real* remaining time even when
+  // submit is unconditionally allowed:
+  //  - `countdownDone`: the actual MM:SS has reached 0. Drives the
+  //    visible "00:00 / Time's up!" display.
+  //  - `timerExpired`: the submit gate is open. True when either the
+  //    countdown is done, or the stage is configured to skip gating.
   const timerLoaded = remaining !== null;
-  const timerExpired = !allowProceedingOnlyWhenTimerExpired || (timerLoaded && remaining <= 0);
+  const countdownDone = timerLoaded && remaining <= 0;
+  const timerExpired = !allowProceedingOnlyWhenTimerExpired || countdownDone;
 
   const completeStage = async () => {
     if (!currentStage) return;
@@ -427,10 +432,10 @@ export default function StudyView({
         {/* Live countdown — only when show_timer is on AND we have a remaining value */}
         {showTimer && remaining !== null && (
           <div className="border-t border-gray-200 pt-4 mt-4">
-            <p className={`text-2xl font-mono tabular-nums text-center ${timerExpired ? "text-btn-active-bg" : "text-heading"}`}>
-              {timerExpired ? "00:00" : formatTime(remaining)}
+            <p className={`text-2xl font-mono tabular-nums text-center ${countdownDone ? "text-btn-active-bg" : "text-heading"}`}>
+              {countdownDone ? "00:00" : formatTime(remaining)}
             </p>
-            {timerExpired && (
+            {countdownDone && (
               <p className="text-xs text-gray-500 text-center mt-1">Time&apos;s up!</p>
             )}
             {pipSupported && (
@@ -481,12 +486,12 @@ export default function StudyView({
                     'ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, Monaco, monospace',
                   lineHeight: 1,
                   margin: 0,
-                  color: timerExpired ? "#324624" : "#152509",
+                  color: countdownDone ? "#324624" : "#152509",
                 }}
               >
-                {timerExpired ? "00:00" : formatTime(remaining ?? 0)}
+                {countdownDone ? "00:00" : formatTime(remaining ?? 0)}
               </p>
-              {timerExpired && (
+              {countdownDone && (
                 <p style={{ fontSize: "11px", color: "#6b7280", margin: 0, marginTop: 4 }}>
                   Time&apos;s up!
                 </p>
