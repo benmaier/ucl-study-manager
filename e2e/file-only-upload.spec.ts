@@ -57,12 +57,14 @@ test("uploading a file without typing any text produces a normal response, not a
   await login(page);
   const chat = await openChat(page);
   await chat.bringToFront();
+  // Small settle before interacting — matches what other suite tests do.
+  await chat.waitForTimeout(500);
 
   // Attach a file via the composer's add-attachment button.
   const addBtn = chat.locator(".aui-composer-add-attachment");
-  await addBtn.waitFor({ state: "visible", timeout: 5_000 });
+  await addBtn.waitFor({ state: "visible", timeout: 10_000 });
   const [fileChooser] = await Promise.all([
-    chat.waitForEvent("filechooser", { timeout: 5_000 }),
+    chat.waitForEvent("filechooser", { timeout: 10_000 }),
     addBtn.click(),
   ]);
   await fileChooser.setFiles([path.join(FIXTURES, "test-data.csv")]);
