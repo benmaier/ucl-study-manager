@@ -1,40 +1,84 @@
 import { describe, it, expect } from "vitest";
 import { ensureTextOnLastUserMessage } from "../../src/lib/ensure-message-text";
 
-describe("ensureTextOnLastUserMessage", () => {
-  it("leaves the body alone when the last user message already has text", () => {
+describe("ensureTextOnLastUserMessage (parts shape — what the widget actually reads)", () => {
+  it("leaves the body alone when the last user message already has text in parts", () => {
     const body = {
       id: "thread1",
       messages: [
-        { role: "user", content: [{ type: "text", text: "hi" }] },
+        { role: "user", parts: [{ type: "text", text: "hi" }] },
       ],
     };
     const out = ensureTextOnLastUserMessage(body) as typeof body;
-    expect(out.messages[0].content).toEqual([{ type: "text", text: "hi" }]);
+    expect(out.messages[0].parts).toEqual([{ type: "text", text: "hi" }]);
   });
 
-  it("injects a placeholder text part when only files are attached", () => {
+  it("injects a placeholder when only file parts are attached", () => {
     const body = {
       id: "thread1",
       messages: [
         {
           role: "user",
-          content: [
-            { type: "file", file: { name: "data.csv" } },
+          parts: [
+            { type: "file", url: "data:image/png;base64,…" },
           ],
         },
       ],
     };
     const out = ensureTextOnLastUserMessage(body) as {
-      messages: { content: { type: string; text?: string }[] }[];
+      messages: { parts: { type: string; text?: string }[] }[];
     };
-    const last = out.messages[0].content;
+    const last = out.messages[0].parts;
     expect(last.length).toBe(2);
     expect(last[1].type).toBe("text");
     expect(last[1].text).toBe("(uploaded file)");
   });
 
-  it("preserves file parts alongside the injected text", () => {
+  it("preserves the file part alongside the injected text", () => {
+    const body = {
+      messages: [
+        {
+          role: "user",
+          parts: [{ type: "file", url: "data:…" }],
+        },
+      ],
+    };
+    const out = ensureTextOnLastUserMessage(body) as {
+      messages: { parts: { type: string }[] }[];
+    };
+    const types = out.messages[0].parts.map((p) => p.type);
+    expect(types).toEqual(["file", "text"]);
+  });
+
+  it("only modifies the last user message, not earlier ones", () => {
+    const body = {
+      messages: [
+        { role: "user", parts: [{ type: "text", text: "first" }] },
+        { role: "assistant", parts: [{ type: "text", text: "hi" }] },
+        { role: "user", parts: [{ type: "file", url: "data:…" }] },
+      ],
+    };
+    const out = ensureTextOnLastUserMessage(body) as {
+      messages: { parts: { type: string; text?: string }[] }[];
+    };
+    expect(out.messages[0].parts).toEqual([{ type: "text", text: "first" }]);
+    expect(out.messages[2].parts.length).toBe(2);
+    expect(out.messages[2].parts[1].text).toBe("(uploaded file)");
+  });
+
+  it("does nothing when the last user message has no parts at all", () => {
+    // Empty parts array — injecting a placeholder for a literally empty
+    // message would be wrong; leave it for the widget to reject.
+    const body = { messages: [{ role: "user", parts: [] as never[] }] };
+    const out = ensureTextOnLastUserMessage(body) as {
+      messages: { parts: unknown[] }[];
+    };
+    expect(out.messages[0].parts).toEqual([]);
+  });
+});
+
+describe("ensureTextOnLastUserMessage (legacy content-array shape)", () => {
+  it("injects a placeholder when content array has only file parts", () => {
     const body = {
       messages: [
         {
@@ -44,40 +88,27 @@ describe("ensureTextOnLastUserMessage", () => {
       ],
     };
     const out = ensureTextOnLastUserMessage(body) as {
-      messages: { content: { type: string }[] }[];
+      messages: { content: { type: string; text?: string }[] }[];
     };
     const types = out.messages[0].content.map((p) => p.type);
     expect(types).toEqual(["file", "text"]);
+    expect(out.messages[0].content[1].text).toBe("(uploaded file)");
   });
 
-  it("only modifies the last user message, not earlier ones", () => {
+  it("leaves content-string body untouched", () => {
+    // `content` as a plain string is the widget's other fallback path —
+    // the widget reads it directly, so we don't need to do anything.
     const body = {
-      messages: [
-        { role: "user", content: [{ type: "text", text: "first" }] },
-        { role: "assistant", content: [{ type: "text", text: "hi" }] },
-        { role: "user", content: [{ type: "file", file: {} }] },
-      ],
+      messages: [{ role: "user", content: "hi" }],
     };
-    const out = ensureTextOnLastUserMessage(body) as {
-      messages: { content: { type: string; text?: string }[] }[];
-    };
-    expect(out.messages[0].content).toEqual([{ type: "text", text: "first" }]);
-    expect(out.messages[2].content.length).toBe(2);
-    expect(out.messages[2].content[1].text).toBe("(uploaded file)");
+    const out = ensureTextOnLastUserMessage(body) as typeof body;
+    expect(out.messages[0].content).toBe("hi");
   });
+});
 
+describe("ensureTextOnLastUserMessage (edge cases)", () => {
   it("does nothing for a non-object body", () => {
     expect(ensureTextOnLastUserMessage(null)).toBeNull();
     expect(ensureTextOnLastUserMessage("not an object")).toBe("not an object");
-  });
-
-  it("does nothing when the last user message has no parts at all", () => {
-    // Empty array — injecting a placeholder for a literally empty message
-    // would be wrong; leave it for the widget to reject.
-    const body = { messages: [{ role: "user", content: [] as never[] }] };
-    const out = ensureTextOnLastUserMessage(body) as {
-      messages: { content: unknown[] }[];
-    };
-    expect(out.messages[0].content).toEqual([]);
   });
 });

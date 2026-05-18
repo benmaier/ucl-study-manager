@@ -105,24 +105,14 @@ test.describe("Timer display when show_timer=true and allow_proceeding=false", (
   test("countdown ticks normally and submit unlocks immediately", async ({ page }) => {
     await login(page);
 
-    // Stage 1 has the default gated timer; skip it by hitting the
-    // progress API directly rather than clicking the test-user button
-    // (less race-prone). The demo study's stages are returned by the
-    // /api/auth/me endpoint we read at login.
-    const meRes = await page.request.get("/api/auth/me");
-    const me = await meRes.json();
-    const firstStageId = (me.stages ?? me.progress ?? []).find?.(
-      (s: { stageId?: number; id?: number; completedAt?: string | null }) =>
-        !s.completedAt,
-    )?.stageId ?? me.progress?.[0]?.stageId;
-    if (!firstStageId) throw new Error("Could not resolve first stage id from /api/auth/me");
-    const completeRes = await page.request.post("/api/participant/progress", {
-      data: { action: "complete", stageId: firstStageId },
-    });
-    if (!completeRes.ok()) throw new Error(`Failed to complete stage 1: ${completeRes.status()}`);
-    await page.goto("/study");
-    await page.waitForURL("**/study", { timeout: 10_000 });
-
+    // Stage 1 has the default gated timer. Use the test-user "Next
+    // (skip timer)" button — that's the path real researchers exercise
+    // while iterating on a study.
+    await expect(page.getByRole("heading", { level: 1, name: /Classic timer/ }))
+      .toBeVisible({ timeout: 10_000 });
+    const skipBtn = page.getByRole("button", { name: /Next \(skip timer\)/ });
+    await expect(skipBtn).toBeVisible({ timeout: 5_000 });
+    await skipBtn.click();
     await expect(page.getByRole("heading", { level: 1, name: /Timer visible, no gating/ }))
       .toBeVisible({ timeout: 10_000 });
 
