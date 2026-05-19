@@ -15,9 +15,15 @@
  *   - Streams progress so you can see it's making forward motion.
  *
  * Usage:
- *   npx tsx cli/generate-participants-bulk.ts <session-id> \
+ *   npx tsx cli/generate-participants-bulk.ts <study-id> \
  *     --count <N> --cohort <cohort-id> [--test] [--output path.csv] \
- *     [--cost <bcrypt-cost>]
+ *     [--cost <bcrypt-cost>] [--session-label "..."]
+ *
+ * `<study-id>` is the string id from study.yaml (e.g. ai_match_pilot_3),
+ * NOT a numeric DB id. The script finds the most recent session for
+ * that study and uses it; if no session exists it creates one (label
+ * defaults to "bulk-generated <ISO timestamp>", override with
+ * --session-label).
  */
 import os from "node:os";
 import path from "node:path";
@@ -37,26 +43,28 @@ function arg(name: string): string | undefined {
   return i === -1 ? undefined : process.argv[i + 1];
 }
 
-const sessionIdArg = process.argv[2];
+const studyIdArg = process.argv[2];
 const countStr = arg("--count");
 const cohortIdArg = arg("--cohort");
 const outputPath = arg("--output");
 const costStr = arg("--cost");
+const sessionLabel = arg("--session-label");
 const isTestUser = process.argv.includes("--test");
 
-if (!sessionIdArg || !countStr || !cohortIdArg) {
+if (!studyIdArg || studyIdArg.startsWith("--") || !countStr || !cohortIdArg) {
   console.error(
-    "Usage: npx tsx cli/generate-participants-bulk.ts <session-id> --count <N> --cohort <cohort-id> [--test] [--output path.csv] [--cost <bcrypt-cost>]",
+    "Usage: npx tsx cli/generate-participants-bulk.ts <study-id> --count <N> --cohort <cohort-id> [--test] [--output path.csv] [--cost <bcrypt-cost>] [--session-label \"...\"]\n\n" +
+      "  <study-id>   the string id from study.yaml (e.g. ai_match_pilot_3)\n" +
+      "  --cohort     the string cohort id from cohorts/<cohort-id>.yaml\n",
   );
   process.exit(1);
 }
 
-const sessionId = parseInt(sessionIdArg, 10);
 const count = parseInt(countStr, 10);
 const bcryptCost = costStr ? parseInt(costStr, 10) : 10;
 
-if (isNaN(sessionId) || isNaN(count) || !cohortIdArg) {
-  console.error("Error: session-id and count must be numbers, cohort must be a string.");
+if (isNaN(count)) {
+  console.error("Error: --count must be a number");
   process.exit(1);
 }
 if (count < 1) {
@@ -68,28 +76,46 @@ if (bcryptCost < 4 || bcryptCost > 14) {
   process.exit(1);
 }
 
-// ─── lookup session + cohort ──────────────────────────────────────────
-const session = await prisma.studySession.findUnique({
-  where: { id: sessionId },
-  include: { study: true },
-});
-if (!session) {
-  console.error(`Error: Session with ID ${sessionId} not found.`);
-  process.exit(1);
-}
-const cohort = await prisma.cohort.findFirst({
-  where: { studyId: session.studyId, cohortId: cohortIdArg },
-});
-if (!cohort) {
-  const available = await prisma.cohort.findMany({
-    where: { studyId: session.studyId },
-    select: { cohortId: true },
-  });
+// ─── lookup study + cohort, find-or-create session ────────────────────
+const study = await prisma.study.findUnique({ where: { studyId: studyIdArg } });
+if (!study) {
+  const available = await prisma.study.findMany({ select: { studyId: true } });
   console.error(
-    `Error: Cohort "${cohortIdArg}" not found for study "${session.study.title}". Available: ${available.map((c) => c.cohortId).join(", ")}`,
+    `Error: Study "${studyIdArg}" not found. Available: ${available.map((s) => s.studyId).join(", ")}`,
   );
   process.exit(1);
 }
+
+const cohort = await prisma.cohort.findFirst({
+  where: { studyId: study.id, cohortId: cohortIdArg },
+});
+if (!cohort) {
+  const available = await prisma.cohort.findMany({
+    where: { studyId: study.id },
+    select: { cohortId: true },
+  });
+  console.error(
+    `Error: Cohort "${cohortIdArg}" not found for study "${study.studyId}". Available: ${available.map((c) => c.cohortId).join(", ")}`,
+  );
+  process.exit(1);
+}
+
+let session = await prisma.studySession.findFirst({
+  where: { studyId: study.id },
+  orderBy: { id: "desc" },
+});
+if (!session) {
+  const label = sessionLabel ?? `bulk-generated ${new Date().toISOString()}`;
+  session = await prisma.studySession.create({
+    data: { studyId: study.id, label },
+  });
+  console.log(`Created new session #${session.id} (label: "${label}")`);
+} else {
+  console.log(
+    `Using existing session #${session.id} (label: "${session.label ?? "—"}") for study "${study.studyId}"`,
+  );
+}
+const sessionId = session.id;
 
 // ─── generate unique identifiers ──────────────────────────────────────
 console.log(`Loading existing participant identifiers…`);
