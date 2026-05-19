@@ -190,12 +190,17 @@ process.stdout.write("\n");
 console.log(`Inserts done in ${((Date.now() - tIns) / 1000).toFixed(1)}s`);
 
 // ─── write credentials CSV ────────────────────────────────────────────
+// Header + columns match the format the admin panel's "Upload
+// Participants CSV" feature expects, so the file is interchangeable in
+// both directions.
 const csvPath = path.resolve(
-  outputPath ?? `participants-${sessionId}-${cohortIdArg}.csv`,
+  outputPath ?? `participants-${study.studyId}-${cohortIdArg}.csv`,
 );
 const csv = [
-  "username,password",
-  ...credentials.map((c) => `${c.username},${c.password}`),
+  "user,password,study_id,cohort_id",
+  ...credentials.map(
+    (c) => `${c.username},${c.password},${study.studyId},${cohortIdArg}`,
+  ),
 ].join("\n");
 writeFileSync(csvPath, csv + "\n");
 console.log(`Wrote ${credentials.length.toLocaleString()} credentials to ${csvPath}`);
